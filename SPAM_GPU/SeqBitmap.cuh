@@ -2,6 +2,7 @@
 #include "cuda_runtime.h"
 #include <iostream>
 #include <math.h>
+#include <bitset>
 
 using namespace std;
 
@@ -104,23 +105,23 @@ public:
 		switch (bitmapType){
 		case 0:
 			index = number / 8;
-			bitmap[bitmapType][index] |= Bit32Table[31 - (number % 8) * 4 - i];
+			bitmap[bitmapType][index] |= Bit32Table[(number % 8) * 4 + i];
 			break;
 		case 1:
 			index = number / 4;
-			bitmap[bitmapType][index] |= Bit32Table[31 - (number % 4) * 8 - i];
+			bitmap[bitmapType][index] |= Bit32Table[(number % 4) * 8 + i];
 			break;
 		case 2:
 			index = number / 2;
-			bitmap[bitmapType][index] |= Bit32Table[31 - (number % 2) * 16 - i];
+			bitmap[bitmapType][index] |= Bit32Table[(number % 2) * 16 + i];
 			break;
 		case 3:
 			index = number;
-			bitmap[bitmapType][index] |= Bit32Table[31 - i];
+			bitmap[bitmapType][index] |= Bit32Table[i];
 			break;
 		case 4:
 			index = number * 2 + i > 31 ? 1 : 0;
-			bitmap[bitmapType][index] |= Bit32Table[31 - i % 32];
+			bitmap[bitmapType][index] |= Bit32Table[i % 32];
 			break;
 		default:
 			cout << "This should not happen" << endl;	

@@ -33,7 +33,7 @@ int main(int argc, char** argv){
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
 
-	ReadInput(input, minSupPer, f1);
+	DbInfo dbInfo = ReadInput(input, minSupPer, f1);
 	system("pause");
 
 }
@@ -157,7 +157,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 	ResizableArray *indexArray = new ResizableArray(10);
 	int* index;
 	for (int i = 0; i < itemCount; i++){
-		if (itemCustCount[i] > minSup) {
+		if (itemCustCount[i] >= minSup) {
 			(*indexArray).Add(i);
 			f1map[i] = f1Size;
 			f1Size++;
@@ -192,6 +192,9 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 		f1[i]->iBitmap = new SeqBitmap();
 		f1[i]->iBitmap->Malloc();
 	}
+	TreeNode::f1 = f1;
+	TreeNode::f1Len = f1Size;
+
 	//index for different length bitmap
 	int idx[5] = { 0 };
 	int lastCid = -1;
@@ -201,20 +204,25 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 	int current;
 	cout << "OverallCount" << overallCount << endl;
 	for (int i = 0; i < overallCount; i++){
-		if (i % 10000 == 0) cout << overallCount << endl;
 		if (cids[i] != lastCid){
 			lastCid = cids[i];
 			bitmapType = getBitmapType(custTransCount[lastCid]);
+			//cout << "custTransCount: " << custTransCount[lastCid] << "bitmapType: " << bitmapType << endl;
 			current = idx[bitmapType];
 			idx[bitmapType]++;
 			lastTid = tids[i];
 			tidIdx = 0;
+			//for (int i = 0; i < 5; i++){
+			//	cout << " idx[i]: " << idx[i];
+			//}
+			//cout << endl;
 		}
 		else if(tids[i] != lastTid){
 			tidIdx++;
 			lastTid = tids[i];
 		}
 		if (itemCustCount[iids[i]] >= minSup){
+			//cout << "item: " << iids[i] << " Custumer: " << cids[i] << " current: " << current << " transaction: " << tidIdx <<  endl;
 			f1[f1map[iids[i]]]->iBitmap->SetBit(bitmapType, current, tidIdx);
 		}
 	}
