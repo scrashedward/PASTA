@@ -9,6 +9,7 @@
 #include "ResizableArray.h"
 #include <fstream>
 #include <map>
+#include <stack>
 
 
 using namespace std;
@@ -21,7 +22,7 @@ struct DbInfo{
 	}
 };
 
-DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1);
+DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1, int * index);
 void IncArraySize(int*& array, int oldSize, int newSize);
 int getBitmapType(int size);
 
@@ -32,13 +33,16 @@ int main(int argc, char** argv){
 	float minSupPer = atof(argv[2]);
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
+	int *index;
+	
+	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
+	
 
-	DbInfo dbInfo = ReadInput(input, minSupPer, f1);
 	system("pause");
 
 }
 
-DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
+DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1, int *index){
 	ResizableArray *cidArr = new ResizableArray(64);
 	ResizableArray *tidArr = new ResizableArray(64);
 	ResizableArray *iidArr = new ResizableArray(64);
@@ -155,7 +159,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 	int f1Size = 0;
 	map<int, int> f1map;
 	ResizableArray *indexArray = new ResizableArray(10);
-	int* index;
 	for (int i = 0; i < itemCount; i++){
 		if (itemCustCount[i] >= minSup) {
 			(*indexArray).Add(i);
@@ -166,7 +169,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 	cout << "f1Size: " << f1Size << endl;
 	(*indexArray).ToArray(index, f1Size);
 	delete indexArray;
-	cout << "f1Size: " << f1Size << endl;
 	int maxCustTran = 0;
 	int avgCustTran = 0;
 	int sizeOfBitmaps[6] = { 0 };
@@ -191,6 +193,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 		f1[i] = new TreeNode;
 		f1[i]->iBitmap = new SeqBitmap();
 		f1[i]->iBitmap->Malloc();
+		f1[i]->seq.push_back(index[i]);
 	}
 	TreeNode::f1 = f1;
 	TreeNode::f1Len = f1Size;
@@ -226,7 +229,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1){
 			f1[f1map[iids[i]]]->iBitmap->SetBit(bitmapType, current, tidIdx);
 		}
 	}
-
 
 	delete [] cids;
 	delete [] tids;
