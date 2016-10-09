@@ -10,7 +10,8 @@
 #include <fstream>
 #include <map>
 #include <stack>
-
+#include <queue>
+#include "GPUList.cuh"
 
 using namespace std;
 struct DbInfo{
@@ -22,27 +23,58 @@ struct DbInfo{
 	}
 };
 
-DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1, int * index);
+DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
 int getBitmapType(int size);
+void FindSeqPattern(stack<TreeNode*>*, int);
+int MAX_WORK_SIZE;
+int MAX_BLOCK_NUM;
+int WORK_SIZE;
 
 int main(int argc, char** argv){
 	// the input file name
 	char * input = argv[1];
 	// the minimun support in percentage
 	float minSupPer = atof(argv[2]);
+
+	MAX_BLOCK_NUM = 512;
+	WORK_SIZE = MAX_BLOCK_NUM * 16;
+	MAX_WORK_SIZE = MAX_BLOCK_NUM * 128;
+
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
-	int *index;
-	
-	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
-	
+	int *index = NULL;
+	stack<TreeNode*>* fStack = new stack<TreeNode*>;
 
+	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
+	SList * f1List = new SList(dbInfo.f1Size);
+	for (int i = 0; i < dbInfo.f1Size; i++){
+		f1List->list[i] = i;
+	}
+	for (int i = 0; i < dbInfo.f1Size; i++){
+		f1[i]->sList = f1List->get();
+		f1[i]->iList = f1List->get();
+		f1[i]->sListLen = dbInfo.f1Size;
+		f1[i]->iListLen = dbInfo.f1Size - i - 1;
+		f1[i]->iListStart = i + 1;
+		f1[i]->iBitmap->CudaMemcpy();
+	}
+
+	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
+		fStack->push(f1[i]);
+	}
+
+	FindSeqPattern(fStack, minSupPer * dbInfo.cNum);
+
+	delete f1List;
+	delete fStack;
+	delete [] index;
+	delete [] f1;
 	system("pause");
 
 }
 
-DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1, int *index){
+DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	ResizableArray *cidArr = new ResizableArray(64);
 	ResizableArray *tidArr = new ResizableArray(64);
 	ResizableArray *iidArr = new ResizableArray(64);
@@ -179,6 +211,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode** f1, int *index){
 	}
 	if (maxCustTran > 64){
 		cout << "A custumer has more than 64 transactions" << endl;
+		exit(-1);
 	}
 	SeqBitmap::SetLength(sizeOfBitmaps[0], sizeOfBitmaps[1], sizeOfBitmaps[2], sizeOfBitmaps[3], sizeOfBitmaps[4]);
 	cout << "Max number of transactions for a custumer is:" << maxCustTran << endl;
@@ -273,4 +306,109 @@ int getBitmapType(int size){
 	else{
 		return 5;
 	}
+}
+
+void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
+	queue<TreeNode*> currentQueue;
+	TreeNode* currentNodePtr;
+	int sWorkSize = 0;
+	int iWorkSize = 0;
+	int sListLen;
+	int iListLen;
+	int iListStart;
+	int *sResult = new int[MAX_WORK_SIZE];
+	int * iResult = new int[MAX_WORK_SIZE];
+	TreeNode ** sResultNodes = new TreeNode*[MAX_WORK_SIZE];
+	TreeNode ** iResultNodes = new TreeNode*[MAX_WORK_SIZE];
+	GPUList sgList[5] = { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) };
+	GPUList igList[5] = { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) };
+	for (int i = 0; i < 5; i++){
+		sgList[i].result = sResult;
+		igList[i].result = iResult;
+	}
+	while (!(fStack->empty())){
+		cout << "fStack size: " << fStack->size() << endl;
+		sWorkSize = 0;
+		iWorkSize = 0;
+		while (min(sWorkSize,iWorkSize) < WORK_SIZE || fStack->empty()){
+			if (SeqBitmap::memPos){ 
+				
+			}
+			else{
+				currentNodePtr = fStack->top();
+				sListLen = currentNodePtr->sListLen;
+				iListLen = currentNodePtr->iListLen;
+				iListStart = currentNodePtr->iListStart;
+				if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
+				for (int j = 0; j < sListLen; j++){
+					//cout <<"j for sList: "<< j << endl;
+					TreeNode* tempNode = new TreeNode;
+					tempNode->iBitmap = new SeqBitmap();
+					tempNode->iBitmap->CudaMalloc();
+					tempNode->seq.push_back(NULL);
+					tempNode->seq.push_back(currentNodePtr->sList->list[j]);
+					sResultNodes[sWorkSize] = tempNode;
+					sWorkSize++;
+					for (int i = 0; i < 5; i++){
+						sgList[i].AddToTail(currentNodePtr->iBitmap->bitmap[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->bitmap[i], tempNode->iBitmap->bitmap[i]);
+					}
+				}
+				for (int j = 0; j < iListLen; j++){
+					//cout << "j for iList: " << j << endl;
+					TreeNode* tempNode = new TreeNode;
+					tempNode->iBitmap = new SeqBitmap();
+					tempNode->iBitmap->CudaMalloc();
+					tempNode->seq.push_back(currentNodePtr->iList->list[j+iListStart]);
+					iResultNodes[iWorkSize] = tempNode;
+					iWorkSize++;
+					for (int i = 0; i < 5; i++){
+						igList[i].AddToTail(currentNodePtr->iBitmap->bitmap[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->bitmap[i], tempNode->iBitmap->bitmap[i]);
+					}
+				}
+				currentQueue.push(currentNodePtr);
+				fStack->pop();
+			}
+		}
+		cout << sWorkSize << endl;
+		cout << iWorkSize << endl;
+		cout << fStack->size() << endl;
+		cout << currentQueue.size() << endl;
+		system("pause");
+		if (SeqBitmap::memPos){
+
+		}
+		else{
+
+			int *sgresult, *igresult;
+			if (cudaMalloc(&sgresult, sizeof(int)*sWorkSize) != cudaSuccess){
+				cout << "cudaMalloc error in sgresult" << endl;
+				exit(-1);
+			}
+			if (cudaMemset(sgresult, 0, sizeof(int)*sWorkSize) != cudaSuccess){
+				cout << "cudaMemset error in sgresult" << endl;
+				exit(-1);
+			}
+			if (cudaMalloc(&igresult, sizeof(int)*iWorkSize) != cudaSuccess){
+				cout << "cudaMalloc error in igresult" << endl;
+				exit(-1);
+			}
+			if (cudaMemset(igresult, 0, sizeof(int)*iWorkSize) != cudaSuccess){
+				cout << "cudaMemset error in igresult" << endl;
+				exit(-1);
+			}
+			for (int i = 0; i < 5; i++){
+				sgList[i].gresult = sgresult;
+				igList[i].gresult = igresult;
+				if (SeqBitmap::size[i] > 0){
+
+				}
+			}
+		}
+		for (int i = 0; i < 5; i++){
+			sgList[i].clear();
+			igList[i].clear();
+		}
+	}
+	delete [] sResultNodes;
+	delete[] iResultNodes;
 }

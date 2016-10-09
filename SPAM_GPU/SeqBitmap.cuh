@@ -58,6 +58,7 @@ public:
 		}
 	}
 	void CudaMemcpy(){
+		CudaMalloc();
 		if (memPos){
 			int sum = 0;
 			for (auto i : sizeGPU){
@@ -78,16 +79,13 @@ public:
 		}
 		else{
 			for (int i = 0; i < 5; i++){
-				if (cudaMalloc(&gpuMemList[i], sizeof(int)* size[i]) != cudaSuccess){
-					cout << "MemAlloc fail" << endl;
-					exit(-1);
-				}
 				if (cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
 					exit(-1);
 				}
 			}
 		}
+		Delete();
 	}
 	void CudaFree(){
 		if (memPos){
@@ -128,11 +126,64 @@ public:
 			break;
 		}
 	}
+
+	void CudaMalloc(){
+		if (memPos){
+			int sum = 0;
+			for (auto i : sizeGPU){
+				sum += i;
+			}
+			if (cudaMalloc(&gpuMem, sizeof(int)*sum) != cudaSuccess){
+				cout << "MemAlloc fail on gpuMem" << endl;
+				exit(-1);
+			}
+		}
+		else{
+			for (int i = 0; i < 5; i++){
+				if (cudaMalloc(&gpuMemList[i], sizeof(int)* size[i]) != cudaSuccess){
+					cout << "MemAlloc fail" << endl;
+					exit(-1);
+				}
+			}
+		}
+	}
 };
 
 int SeqBitmap::length[5] = {0};
 int SeqBitmap::size[5] = { 0 };
 int SeqBitmap::sizeGPU[5] = { 0 };
 bool SeqBitmap::memPos = false;
+
+#endif
+
+
+#ifndef  SHARED_LIST
+#define SHARED_LIST
+
+class SList{
+public:
+	int count;
+	int* list;
+	int length;
+
+	SList(int l){
+		length = l;
+		list = new int[l];
+		count = 0;
+	}
+
+	SList* get(){
+		count++;
+		return this;
+	}
+
+	int free(){
+		count--;
+		if (count == 0){
+			delete[] list;
+		}
+		return count;
+	}
+};
 
 #endif
