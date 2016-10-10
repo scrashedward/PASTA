@@ -30,8 +30,10 @@ void FindSeqPattern(stack<TreeNode*>*, int);
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
+int MAX_THREAD_NUM;
 
 int main(int argc, char** argv){
+
 	// the input file name
 	char * input = argv[1];
 	// the minimun support in percentage
@@ -40,6 +42,7 @@ int main(int argc, char** argv){
 	MAX_BLOCK_NUM = 512;
 	WORK_SIZE = MAX_BLOCK_NUM * 16;
 	MAX_WORK_SIZE = MAX_BLOCK_NUM * 128;
+	MAX_THREAD_NUM = 1024;
 
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
@@ -59,7 +62,7 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMemcpy();
 	}
-
+	cout <<  "first bitmap for "<< index[0]<<" is "<<f1[0]->iBitmap->bitmap[0][0] << endl;
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
 	}
@@ -350,7 +353,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					sResultNodes[sWorkSize] = tempNode;
 					sWorkSize++;
 					for (int i = 0; i < 5; i++){
-						sgList[i].AddToTail(currentNodePtr->iBitmap->bitmap[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->bitmap[i], tempNode->iBitmap->bitmap[i]);
+						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
 				for (int j = 0; j < iListLen; j++){
@@ -362,18 +365,13 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					iResultNodes[iWorkSize] = tempNode;
 					iWorkSize++;
 					for (int i = 0; i < 5; i++){
-						igList[i].AddToTail(currentNodePtr->iBitmap->bitmap[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->bitmap[i], tempNode->iBitmap->bitmap[i]);
+						igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
 				currentQueue.push(currentNodePtr);
 				fStack->pop();
 			}
 		}
-		cout << sWorkSize << endl;
-		cout << iWorkSize << endl;
-		cout << fStack->size() << endl;
-		cout << currentQueue.size() << endl;
-		system("pause");
 		if (SeqBitmap::memPos){
 
 		}
@@ -382,32 +380,40 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 			int *sgresult, *igresult;
 			if (cudaMalloc(&sgresult, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in sgresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(sgresult, 0, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in sgresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMalloc(&igresult, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in igresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(igresult, 0, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in igresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			for (int i = 0; i < 5; i++){
 				sgList[i].gresult = sgresult;
 				igList[i].gresult = igresult;
 				if (SeqBitmap::size[i] > 0){
-
+					sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
+					system("pause");
+					igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
 				}
 			}
+			for (int i = 0; i < 5; i++){
+				sgList[i].clear();
+				igList[i].clear();
+			}
 		}
-		for (int i = 0; i < 5; i++){
-			sgList[i].clear();
-			igList[i].clear();
-		}
+
+
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;

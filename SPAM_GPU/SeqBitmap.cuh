@@ -85,7 +85,7 @@ public:
 				}
 			}
 		}
-		Delete();
+		//Delete();
 	}
 	void CudaFree(){
 		if (memPos){
