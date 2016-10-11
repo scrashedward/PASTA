@@ -44,14 +44,17 @@ public:
 		length = 0;
 		if (cudaFree(gsrc1) != cudaSuccess){
 			cout << "cudaFree error in gsrc1" << endl;
+			system("pause");
 			exit(-1);
 		}
 		if (cudaFree(gsrc2) != cudaSuccess){
 			cout << "cudaFree error in gsrc2" << endl;
+			system("pause");
 			exit(-1);
 		}
 		if (cudaFree(gdst) != cudaSuccess){
 			cout << "cudaFree error in gdst" << endl;
+			system("pause");
 			exit(-1);
 		}
 	}
@@ -60,26 +63,32 @@ public:
 		if (!kind){
 			if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc1" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc2" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMalloc(&gdst, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error gdist" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
+				system("pause");
 				exit(-1);
 			}
 		}
@@ -89,6 +98,7 @@ public:
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 		}

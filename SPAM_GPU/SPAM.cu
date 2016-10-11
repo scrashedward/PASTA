@@ -306,7 +306,7 @@ int getBitmapType(int size){
 }
 
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
-	queue<TreeNode*> currentQueue;
+	stack<TreeNode*> currentStack;
 	TreeNode* currentNodePtr;
 	int sWorkSize = 0;
 	int iWorkSize = 0;
@@ -327,7 +327,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 		cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
-		while (min(sWorkSize,iWorkSize) < WORK_SIZE || fStack->empty()){
+		while (min(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
 			if (SeqBitmap::memPos){ 
 				
 			}
@@ -342,6 +342,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					TreeNode* tempNode = new TreeNode;
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
+					tempNode->seq = currentNodePtr->seq;
 					tempNode->seq.push_back(NULL);
 					tempNode->seq.push_back(currentNodePtr->sList->list[j]);
 					sResultNodes[sWorkSize] = tempNode;
@@ -355,6 +356,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					TreeNode* tempNode = new TreeNode;
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
+					tempNode->seq = currentNodePtr->seq;
 					tempNode->seq.push_back(currentNodePtr->iList->list[j+iListStart]);
 					iResultNodes[iWorkSize] = tempNode;
 					iWorkSize++;
@@ -362,7 +364,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 						igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
-				currentQueue.push(currentNodePtr);
+				currentStack.push(currentNodePtr);
 				fStack->pop();
 			}
 		}
@@ -374,18 +376,22 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 			int *sgresult, *igresult;
 			if (cudaMalloc(&sgresult, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in sgresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(sgresult, 0, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in sgresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMalloc(&igresult, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in igresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(igresult, 0, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in igresult" << endl;
+				system("pause");
 				exit(-1);
 			}
 			for (int i = 0; i < 5; i++){
@@ -402,16 +408,77 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					igList[i].clear();
 				}
 			}
-			for (int i = 0; i < 5059; i++){
-				if (sgList[0].result[i] != TreeNode::f1[i]->support){
-					cout << "this should not happen" << endl;
-					system("pause");
+			int sPivot = sWorkSize;
+			int iPivot = iWorkSize;
+			while (!currentStack.empty()){
+				int sListSize = 0;
+				int iListSize = 0;
+				cout << "stackSize:" << currentStack.size() << endl;
+				TreeNode* currentNodePtr = currentStack.top();
+				SList* sList = new SList(currentNodePtr->sListLen);
+				SList* iList = new SList(currentNodePtr->iListLen);
+				for (int i = 0; i < currentNodePtr->sListLen; i++){
+					if (sResult[sPivot - sListLen + i] > minSup){
+						sList->list[sListSize++] = currentNodePtr->sList->list[i];
+					}
 				}
+				for (int i = currentNodePtr->iListStart, j = 0; j < currentNodePtr->iListLen; j++){
+					if (iResult[iPivot - iListLen + j] > minSup){
+						iList->list[iListSize++] = currentNodePtr->iList->list[i + j];
+					}
+				}
+				int tmp = 0;
+				for (int i = 0; i < currentNodePtr->iListLen; i++){
+					iPivot--;
+					if (iResult[iPivot] > minSup){
+						iResultNodes[iPivot]->sList = sList->get();
+						iResultNodes[iPivot]->sListLen = sListSize;
+						iResultNodes[iPivot]->iList = iList->get();
+						iResultNodes[iPivot]->iListLen = tmp;
+						iResultNodes[iPivot]->iListStart = iListSize - tmp;
+						tmp++;
+						fStack->push(iResultNodes[iPivot]);
+					}
+					else{
+						iResultNodes[iPivot]->iBitmap->CudaFree();
+						delete iResultNodes[iPivot]->iBitmap;
+						delete iResultNodes[iPivot];
+					}
+				}
+				tmp = 0;
+				for (int i = 0; i < currentNodePtr->sListLen; i++){
+					sPivot--;
+					if (sResult[sPivot] > minSup){
+						sResultNodes[sPivot]->sList = sList->get();
+						sResultNodes[sPivot]->iList = sList->get();
+						sResultNodes[sPivot]->sListLen = sListSize;
+						sResultNodes[sPivot]->iListLen = tmp;
+						sResultNodes[sPivot]->iListStart = sListSize - tmp;
+						tmp++;
+						fStack->push(sResultNodes[sPivot]);
+					}
+					else{
+						sResultNodes[sPivot]->iBitmap->CudaFree();
+						delete sResultNodes[sPivot]->iBitmap;
+						delete sResultNodes[sPivot];
+					}
+				}
+				if (currentNodePtr->seq.size() != 1){
+					currentNodePtr->iBitmap->CudaFree();
+					if (currentNodePtr->sList->free() == 0){
+						delete currentNodePtr->sList;
+					}
+					if (currentNodePtr->iList->free() == 0){
+						delete currentNodePtr->iList;
+					}
+					delete currentNodePtr->iBitmap;
+					delete currentNodePtr;
+				}
+				currentStack.pop();
 			}
-
 		}
-		cout << "now we are here lol" << endl;
-		system("pause");
+		//cout << "now we are here lol" << endl;
+		//system("pause");
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;

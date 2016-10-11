@@ -28,7 +28,7 @@ public:
 	static int sizeGPU[5];
 	static bool memPos; // memory on GPU is grouped(1) or distributed(0)
 
-	int *gpuMemList[6];
+	int *gpuMemList[5];
 	int *gpuMem;
 	void Malloc(){
 		for (int i = 0; i < 5; i++){
@@ -66,12 +66,14 @@ public:
 			}
 			if (cudaMalloc(&gpuMem, sizeof(int)*sum) != cudaSuccess){
 				cout << "MemAlloc fail" << endl;
+				system("pause");
 				exit(-1);
 			}
 			sum = 0;
 			for (int i = 0; i < 5; i++){
 				if (cudaMemcpy(gpuMem + sum, bitmap[i], sizeof(int)*sizeGPU[i], cudaMemcpyHostToDevice) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
+					system("pause");
 					exit(-1);
 				}
 				sum += sizeGPU[i];
@@ -81,6 +83,7 @@ public:
 			for (int i = 0; i < 5; i++){
 				if (cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
+					system("pause");
 					exit(-1);
 				}
 			}
@@ -89,11 +92,19 @@ public:
 	}
 	void CudaFree(){
 		if (memPos){
-			cudaFree(gpuMem);
+			if (cudaFree(gpuMem) != cudaSuccess){
+				cout << "cudaFree error in gpuMem" << endl;
+				system("pause");
+				exit(-1);
+			}
 		}
 		else{
-			for (auto i : gpuMemList){
-				cudaFree(i);
+			for (int i = 0; i < 5; i++){
+				if (cudaFree(gpuMemList[i]) != cudaSuccess){
+					cout << "cudaFree error in gpuMemList" << endl;
+					system("pause");
+					exit(-1);
+				}
 			}
 		}
 	}
@@ -135,13 +146,17 @@ public:
 			}
 			if (cudaMalloc(&gpuMem, sizeof(int)*sum) != cudaSuccess){
 				cout << "MemAlloc fail on gpuMem" << endl;
+				system("pause");
 				exit(-1);
 			}
 		}
 		else{
 			for (int i = 0; i < 5; i++){
-				if (cudaMalloc(&gpuMemList[i], sizeof(int)* size[i]) != cudaSuccess){
+				cudaError error = cudaMalloc(&gpuMemList[i], sizeof(int)* size[i]);
+				if ( error != cudaSuccess){
+					cout << error << endl;
 					cout << "MemAlloc fail" << endl;
+					system("pause");
 					exit(-1);
 				}
 			}
@@ -164,10 +179,8 @@ class SList{
 public:
 	int count;
 	int* list;
-	int length;
 
 	SList(int l){
-		length = l;
 		list = new int[l];
 		count = 0;
 	}
