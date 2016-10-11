@@ -62,7 +62,7 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMemcpy();
 	}
-	cout <<  "first bitmap for "<< index[0]<<" is "<<f1[0]->iBitmap->bitmap[0][0] << endl;
+
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
 	}
@@ -115,7 +115,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	for (int i = 0; i < itemCustSize; i++){
 		itemPrevCustID[i] = -1;
 	}
-	
+
 	while (!inFile.eof()){
 		inFile >> custID;
 		inFile >> transID;
@@ -230,6 +230,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		f1[i]->iBitmap = new SeqBitmap();
 		f1[i]->iBitmap->Malloc();
 		f1[i]->seq.push_back(index[i]);
+		f1[i]->support = itemCustCount[index[i]];
 	}
 	TreeNode::f1 = f1;
 	TreeNode::f1Len = f1Size;
@@ -246,26 +247,19 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		if (cids[i] != lastCid){
 			lastCid = cids[i];
 			bitmapType = getBitmapType(custTransCount[lastCid]);
-			//cout << "custTransCount: " << custTransCount[lastCid] << "bitmapType: " << bitmapType << endl;
 			current = idx[bitmapType];
 			idx[bitmapType]++;
 			lastTid = tids[i];
 			tidIdx = 0;
-			//for (int i = 0; i < 5; i++){
-			//	cout << " idx[i]: " << idx[i];
-			//}
-			//cout << endl;
 		}
 		else if(tids[i] != lastTid){
 			tidIdx++;
 			lastTid = tids[i];
 		}
 		if (itemCustCount[iids[i]] >= minSup){
-			//cout << "item: " << iids[i] << " Custumer: " << cids[i] << " current: " << current << " transaction: " << tidIdx <<  endl;
 			f1[f1map[iids[i]]]->iBitmap->SetBit(bitmapType, current, tidIdx);
 		}
 	}
-
 	delete [] cids;
 	delete [] tids;
 	delete [] iids;
@@ -380,22 +374,18 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 			int *sgresult, *igresult;
 			if (cudaMalloc(&sgresult, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in sgresult" << endl;
-				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(sgresult, 0, sizeof(int)*sWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in sgresult" << endl;
-				system("pause");
 				exit(-1);
 			}
 			if (cudaMalloc(&igresult, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMalloc error in igresult" << endl;
-				system("pause");
 				exit(-1);
 			}
 			if (cudaMemset(igresult, 0, sizeof(int)*iWorkSize) != cudaSuccess){
 				cout << "cudaMemset error in igresult" << endl;
-				system("pause");
 				exit(-1);
 			}
 			for (int i = 0; i < 5; i++){
@@ -403,17 +393,25 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 				igList[i].gresult = igresult;
 				if (SeqBitmap::size[i] > 0){
 					sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
-					system("pause");
 					igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
 				}
 			}
 			for (int i = 0; i < 5; i++){
-				sgList[i].clear();
-				igList[i].clear();
+				if (SeqBitmap::size[i] > 0){
+					sgList[i].clear();
+					igList[i].clear();
+				}
 			}
+			for (int i = 0; i < 5059; i++){
+				if (sgList[0].result[i] != TreeNode::f1[i]->support){
+					cout << "this should not happen" << endl;
+					system("pause");
+				}
+			}
+
 		}
-
-
+		cout << "now we are here lol" << endl;
+		system("pause");
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;

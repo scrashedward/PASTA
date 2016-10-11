@@ -33,7 +33,7 @@ public:
 	void Malloc(){
 		for (int i = 0; i < 5; i++){
 			bitmap[i] = new int[size[i]];
-			memset(bitmap[i], 0, size[i]);
+			memset(bitmap[i], 0, sizeof(int)*size[i]);
 		}
 	}
 	void Delete(){

@@ -6,9 +6,9 @@
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
 __device__ int SBitmap(int n, int bitmapType);
-__device__ int hibit(int n);
+__host__ __device__ int hibit(int n);
 __device__ int hibit64(long long int n);
-__device__ int SupportCount(int n, int bitmapType);
+__host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
 #define GPU_LIST
@@ -86,14 +86,6 @@ public:
 		else if (kind){
 			cudaError_t error;
 			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
-			int wrong = 0;
-			for (int i = 0; i < 5000; i++){
-				if (result[i] != TreeNode::f1[i]->iBitmap->bitmap[0][0]){
-					cout << i <<" wrong" << endl;
-					wrong++;
-				}
-			}
-			cout << "wrong=" << wrong << endl;
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
@@ -150,8 +142,8 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			s2 = (gsrc2[2 * threadPos] << 32) + gsrc2[2 * threadPos + 1];
 			if (type == true){
 				s1 = hibit64(s1);
-				s2 = hibit64(s2);
 			}
+			s2 = hibit64(s2);
 			long long int d = s1 & s2;
 			if (d != 0) sup[tid]++;
 			gdst[2 * threadPos] = (int)(d >> 32);
@@ -160,14 +152,13 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 		else{
 			if (type == true){
 				s1 = SBitmap(gsrc1[threadPos], bitmapType);
-				s2 = SBitmap(gsrc2[threadPos], bitmapType);
 			}
 			else{
 				s1 = gsrc1[threadPos];
-				s2 = gsrc2[threadPos];
 			}
+			s2 = gsrc2[threadPos];
 			d = s1 & s2;
-			sup[tid] += SupportCount(d, bitmapType);
+			sup[tid] += SupportCount( d, bitmapType);
 			gdst[threadPos] = d;
 		}
 	}
@@ -188,7 +179,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 		sup[tid] += sup[tid + 1];
 	}
 	if (tid == 0){
-		result[currentBlock] += src2[currentBlock][0];
+			result[currentBlock] += sup[0];
 	}
 }
 
@@ -224,7 +215,7 @@ __device__ int SBitmap(int n, int bitmapType){
 	return r;
 }
 
-__device__ int hibit(int n) {
+__host__ __device__ int hibit(int n) {
 	n |= (n >> 1);
 	n |= (n >> 2);
 	n |= (n >> 4);
@@ -233,7 +224,7 @@ __device__ int hibit(int n) {
 	return (n - (n >> 1))==0? 0 : (n-(n>>1)-1);
 }
 
-__device__ int SupportCount(int n, int bitmapType){
+__host__ __device__ int SupportCount(int n, int bitmapType){
 	int r = 0;
 	switch (bitmapType){
 	case 0:
@@ -255,6 +246,7 @@ __device__ int SupportCount(int n, int bitmapType){
 	case 2:
 		if (n & 0xFFFF0000) r++;
 		if (n & 0x0000FFFF) r++;
+		break;
 	case 3:
 		if (n) r++;
 		break;
@@ -272,5 +264,5 @@ __device__ int hibit64(long long int n){
 	n |= (n >> 8);
 	n |= (n >> 16);
 	n |= (n >> 32);
-	return n - (n >> 1) == 0 ? 0 : n - (n >> 1) - 1;
+	return ((n - (n >> 1)) == 0) ? 0 :( n - (n >> 1) - 1);
 }
