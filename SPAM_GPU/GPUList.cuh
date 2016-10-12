@@ -5,6 +5,7 @@
 
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
+__global__ void MemCheck(int ** src1);
 __device__ int SBitmap(int n, int bitmapType);
 __host__ __device__ int hibit(int n);
 __device__ int hibit64(long long int n);
@@ -32,10 +33,13 @@ public:
 		dst = new int*[size];
 	}
 	
-	void AddToTail(int *s1, int *s2, int *d){
+	void AddToTail(int *s1, int *s2, int *d, bool debug = false){
 		src1[length] = s1;
 		src2[length] = s2;
 		dst[length] = d;
+		if (debug && length == 112){
+			cout << "here length 112 is " << src1[length] << endl;
+		}
 		length++;
 		return;
 	}
@@ -59,7 +63,7 @@ public:
 		}
 	}
 
-	void CudaMemcpy(bool kind){
+	void CudaMemcpy(bool kind, bool debug = false){
 		if (!kind){
 			if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc1" << endl;
@@ -71,6 +75,16 @@ public:
 				system("pause");
 				exit(-1);
 			}
+			cudaDeviceSynchronize();
+			if (debug){
+				for (int i = 0; i < 5; i++){
+					cout << "src1[" << i + 111 << "]:" << src1[i + 111] << " ";
+				}
+				cout << endl;
+				MemCheck << <1, 1 >> >(gsrc1);
+				cudaDeviceSynchronize();
+			}
+			cout << endl;
 			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc2" << endl;
 				system("pause");
@@ -104,12 +118,15 @@ public:
 		}
 	}
 
-	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type){
-		CudaMemcpy(false);
+	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
+		CudaMemcpy(false, debug);
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			CudaSupportCount<<< blockNum, threadNum, sizeof(int)*threadNum>>>(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
+			cout << " type: " << type << " oldBlock: " << oldBlock << endl;
+			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			cudaDeviceSynchronize();
+			CudaMemcpy(true);
 		}
-		CudaMemcpy(true);
 	}
 };
 
@@ -141,6 +158,10 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	else{
 		tmp = len + blockSize;
 	}
+
+//	int lmax = 4190;
+//	int lmin = 4182;
+//	if (tid == 0 && bid == 0) printf("%d %d  ", lmax, lmin);
 	for (int i = 0; i < tmp; i += blockSize){
 		int threadPos = i + tid;
 		if ((threadPos >= len&& bitmapType != 4) || (bitmapType ==4 && threadPos >= len/2)){
@@ -164,6 +185,12 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 				s1 = SBitmap(gsrc1[threadPos], bitmapType);
 			}
 			else{
+				//if (currentBlock < lmax || currentBlock > lmin){
+				//if ((currentBlock <= 130&& currentBlock >= 105) && tid == 0){
+				//	printf("%d %x\n", currentBlock, src1[currentBlock]);
+				//	s1 = src1[currentBlock][0];
+				//}
+				//s1 = src1[currentBlock][0];
 				s1 = gsrc1[threadPos];
 			}
 			s2 = gsrc2[threadPos];
@@ -191,6 +218,13 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	if (tid == 0){
 			result[currentBlock] += sup[0];
 	}
+}
+
+__global__ void MemCheck(int ** src1){
+	for (int i = 105; i <= 115; i++){
+		printf("%d %x ", i, src1[i]);
+	}
+	printf("\n");
 }
 
 __device__ int SBitmap(int n, int bitmapType){
