@@ -6,9 +6,9 @@
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
 __global__ void MemCheck(int ** src1);
-__device__ int SBitmap(int n, int bitmapType);
-__host__ __device__ int hibit(int n);
-__device__ int hibit64(long long int n);
+__device__ int SBitmap(unsigned int n, int bitmapType);
+__host__ __device__ int hibit(unsigned int n);
+__device__ int hibit64(unsigned long long int n);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -25,12 +25,14 @@ public:
 	int * result;
 	int * gresult;
 	int length;
+	bool hasGPUMem;
 
 	GPUList(int size){
 		length = 0;
 		src1 = new int*[size];
 		src2 = new int*[size];
 		dst = new int*[size];
+		hasGPUMem = false;
 	}
 	
 	void AddToTail(int *s1, int *s2, int *d, bool debug = false){
@@ -46,25 +48,29 @@ public:
 
 	void clear(){
 		length = 0;
-		if (cudaFree(gsrc1) != cudaSuccess){
-			cout << "cudaFree error in gsrc1" << endl;
-			system("pause");
-			exit(-1);
-		}
-		if (cudaFree(gsrc2) != cudaSuccess){
-			cout << "cudaFree error in gsrc2" << endl;
-			system("pause");
-			exit(-1);
-		}
-		if (cudaFree(gdst) != cudaSuccess){
-			cout << "cudaFree error in gdst" << endl;
-			system("pause");
-			exit(-1);
+		if (hasGPUMem){
+			if (cudaFree(gsrc1) != cudaSuccess){
+				cout << "cudaFree error in gsrc1" << endl;
+				system("pause");
+				exit(-1);
+			}
+			if (cudaFree(gsrc2) != cudaSuccess){
+				cout << "cudaFree error in gsrc2" << endl;
+				system("pause");
+				exit(-1);
+			}
+			if (cudaFree(gdst) != cudaSuccess){
+				cout << "cudaFree error in gdst" << endl;
+				system("pause");
+				exit(-1);
+			}
+			hasGPUMem = false;
 		}
 	}
 
 	void CudaMemcpy(bool kind, bool debug = false){
 		if (!kind){
+			hasGPUMem = true;
 			if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc1" << endl;
 				system("pause");
@@ -83,8 +89,9 @@ public:
 				cout << endl;
 				MemCheck << <1, 1 >> >(gsrc1);
 				cudaDeviceSynchronize();
+				cout << endl;
 			}
-			cout << endl;
+			
 			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc2" << endl;
 				system("pause");
@@ -121,12 +128,12 @@ public:
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
 		CudaMemcpy(false, debug);
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
-			cout << " type: " << type << " oldBlock: " << oldBlock << endl;
+			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
+			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
 			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaDeviceSynchronize();
-			CudaMemcpy(true);
 		}
+		CudaMemcpy(true);
 	}
 };
 
@@ -181,7 +188,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			gdst[2 * threadPos + 1] = (int)(d & 0xFFFFFFFF);
 		}
 		else{
-			if (type == true){
+			if (type){
 				s1 = SBitmap(gsrc1[threadPos], bitmapType);
 			}
 			else{
@@ -215,8 +222,12 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 		sup[tid] += sup[tid + 2];
 		sup[tid] += sup[tid + 1];
 	}
+	//if (tid == 0 && currentBlock == 747 && type && bitmapType == 2){
 	if (tid == 0){
 			result[currentBlock] += sup[0];
+			//printf("sup in GPU is %d\n", sup[0]);
+			//printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", SBitmap(src1[747][1], 2), SBitmap(src1[747][67], 2), SBitmap(src1[747][72], 2), SBitmap(src1[747][117], 2), SBitmap(src1[747][128], 2), SBitmap(src1[747][156], 2), SBitmap(src1[747][191], 2));
+			//printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", src2[747][1], src2[747][67], src2[747][72], src2[747][117], src2[747][128], src2[747][156], src2[747][191]);
 	}
 }
 
@@ -227,7 +238,7 @@ __global__ void MemCheck(int ** src1){
 	printf("\n");
 }
 
-__device__ int SBitmap(int n, int bitmapType){
+__host__ __device__ int SBitmap(unsigned int n, int bitmapType){
 	int r = 0;
 	switch (bitmapType){
 	case 0:
@@ -259,7 +270,7 @@ __device__ int SBitmap(int n, int bitmapType){
 	return r;
 }
 
-__host__ __device__ int hibit(int n) {
+__host__ __device__ int hibit(unsigned int n) {
 	n |= (n >> 1);
 	n |= (n >> 2);
 	n |= (n >> 4);
@@ -301,7 +312,7 @@ __host__ __device__ int SupportCount(int n, int bitmapType){
 	return r;
 }
 
-__device__ int hibit64(long long int n){
+__device__ int hibit64(unsigned long long int n){
 	n |= (n >> 1);
 	n |= (n >> 2);
 	n |= (n >> 4);

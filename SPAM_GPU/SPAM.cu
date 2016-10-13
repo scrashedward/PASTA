@@ -26,11 +26,12 @@ struct DbInfo{
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
 int getBitmapType(int size);
-void FindSeqPattern(stack<TreeNode*>*, int);
+void FindSeqPattern(stack<TreeNode*>*, int, int*);
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
+__global__ void tempDebug(int* input);
 
 int main(int argc, char** argv){
 
@@ -54,6 +55,12 @@ int main(int argc, char** argv){
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
+	//unsigned int gggg = 1;
+	//cout << (gggg << 30) << " " << (gggg << 15)  << " "<< ((gggg << 31) >> 16) << endl;
+	//cout << hibit(1 << 31) << endl;
+	//cout << SBitmap(1 << 31, 2) << endl;
+	//system("pause");
+
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
 		f1[i]->iList = f1List->get();
@@ -61,13 +68,26 @@ int main(int argc, char** argv){
 		f1[i]->iListLen = dbInfo.f1Size - i - 1;
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMemcpy();
+		//cout << f1[i]->seq[0]<<" " << f1[i]->support << endl;
+		if (f1[i]->seq[0] == 3 || f1[i]->seq[0] == 224){
+			cout << "[5]:" << f1[i]->iBitmap->bitmap[2][1] << " ";
+			cout << "[371]:" << f1[i]->iBitmap->bitmap[2][67] << " ";
+			cout << "[391]:" << f1[i]->iBitmap->bitmap[2][72] << " ";
+			cout << "[618]:" << f1[i]->iBitmap->bitmap[2][117] << " ";
+			cout << "[676]:" << f1[i]->iBitmap->bitmap[2][128] << " ";
+			cout << "[812]:" << f1[i]->iBitmap->bitmap[2][156] << " ";
+			cout << "[967]:" << f1[i]->iBitmap->bitmap[2][191] << " ";
+			cout << endl;
+			tempDebug << <1, 1 >> >(f1[i]->iBitmap->gpuMemList[2]);
+		}
 	}
+	
 
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
 	}
 
-	FindSeqPattern(fStack, minSupPer * dbInfo.cNum);
+	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
 	delete fStack;
@@ -251,6 +271,10 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 			idx[bitmapType]++;
 			lastTid = tids[i];
 			tidIdx = 0;
+			//if (cids[i] == 967) {
+			//	cout << "at " << current << " bitmapType:  " << bitmapType << endl;
+			//	system("pause");
+			//}
 		}
 		else if(tids[i] != lastTid){
 			tidIdx++;
@@ -258,6 +282,10 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		}
 		if (itemCustCount[iids[i]] >= minSup){
 			f1[f1map[iids[i]]]->iBitmap->SetBit(bitmapType, current, tidIdx);
+			if (cids[i] == 676 && iids[i] == 3){
+				cout << f1[f1map[iids[i]]]->iBitmap->bitmap[2][191] << endl;
+				system("pause");
+			}
 		}
 	}
 	delete [] cids;
@@ -305,7 +333,7 @@ int getBitmapType(int size){
 	}
 }
 
-void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
+void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	stack<TreeNode*> currentStack;
 	TreeNode* currentNodePtr;
 	int sWorkSize = 0;
@@ -342,9 +370,13 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
-					tempNode->seq.push_back(NULL);
-					tempNode->seq.push_back(currentNodePtr->sList->list[j]);
+					tempNode->seq.push_back(-1);
+					tempNode->seq.push_back(index[currentNodePtr->sList->list[j]]);
 					sResultNodes[sWorkSize] = tempNode;
+					//if (sWorkSize == 747){
+					//	cout << tempNode->seq[2] << endl;
+					//	system("pause");
+					//}
 					sWorkSize++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
@@ -358,19 +390,20 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
-					tempNode->seq.push_back(currentNodePtr->iList->list[j+iListStart]);
+					tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
 					iResultNodes[iWorkSize] = tempNode;
 					iWorkSize++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
-							igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i], fStack->size() <= 501 && i==0);
-							if (fStack->size() <= 501 && iWorkSize >= 106 && iWorkSize <= 116 && i == 0){
-								cout << iWorkSize << " " << igList[i].length << " " << "igList[0].src1[" << iWorkSize - 1 << "]: " << igList[i].src1[iWorkSize - 1] << endl;
-							}
+							igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+							//igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i], fStack->size() <= 501 && i==0);
+							//if (fStack->size() <= 501 && iWorkSize >= 106 && iWorkSize <= 116 && i == 0){
+							//	cout << iWorkSize << " " << igList[i].length << " " << "igList[0].src1[" << iWorkSize - 1 << "]: " << igList[i].src1[iWorkSize - 1] << endl;
+							//}
 						}
 					}
 				}
-				cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
+				//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
 				currentStack.push(currentNodePtr);
 				fStack->pop();
 			}
@@ -401,17 +434,22 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 				system("pause");
 				exit(-1);
 			}
-			cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
+			//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
 			for (int i = 0; i < 5; i++){
 				sgList[i].gresult = sgresult;
 				igList[i].gresult = igresult;
 				if (SeqBitmap::size[i] > 0){
-					sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
-					if (fStack->size() < 501){
-						igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, true);
+					if (sWorkSize > 0){
+						sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
 					}
-					else{
-						igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
+					if (iWorkSize > 0){
+						if (fStack->size() < 501){
+							//igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, true);
+							igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
+						}
+						else{
+							igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
+						}
 					}
 				}
 			}
@@ -426,31 +464,43 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 			while (!currentStack.empty()){
 				int sListSize = 0;
 				int iListSize = 0;
-				cout << "stackSize:" << currentStack.size() << endl;
+				//cout << "stackSize:" << currentStack.size() << endl;
 				TreeNode* currentNodePtr = currentStack.top();
 				SList* sList = new SList(currentNodePtr->sListLen);
 				SList* iList = new SList(currentNodePtr->iListLen);
 				for (int i = 0; i < currentNodePtr->sListLen; i++){
-					if (sResult[sPivot - sListLen + i] > minSup){
+					if (sResult[sPivot - sListLen + i] >= minSup){
 						sList->list[sListSize++] = currentNodePtr->sList->list[i];
 					}
 				}
 				for (int i = currentNodePtr->iListStart, j = 0; j < currentNodePtr->iListLen; j++){
-					if (iResult[iPivot - iListLen + j] > minSup){
+					if (iResult[iPivot - iListLen + j] >= minSup){
 						iList->list[iListSize++] = currentNodePtr->iList->list[i + j];
 					}
 				}
 				int tmp = 0;
 				for (int i = 0; i < currentNodePtr->iListLen; i++){
 					iPivot--;
-					if (iResult[iPivot] > minSup){
+					if (iResult[iPivot] >= minSup){
 						iResultNodes[iPivot]->sList = sList->get();
 						iResultNodes[iPivot]->sListLen = sListSize;
 						iResultNodes[iPivot]->iList = iList->get();
 						iResultNodes[iPivot]->iListLen = tmp;
 						iResultNodes[iPivot]->iListStart = iListSize - tmp;
+						iResultNodes[iPivot]->support = iResult[iPivot];
 						tmp++;
 						fStack->push(iResultNodes[iPivot]);
+						vector<int> temp = iResultNodes[iPivot]->seq;
+						for (int i = 0; i < temp.size(); i++){
+							if (temp[i] != -1){
+								cout << temp[i] << " ";
+							}
+							else{
+								cout << ", ";
+							}
+						}
+						cout << iResult[iPivot];
+						cout << endl;
 					}
 					else{
 						iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -461,14 +511,31 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 				tmp = 0;
 				for (int i = 0; i < currentNodePtr->sListLen; i++){
 					sPivot--;
-					if (sResult[sPivot] > minSup){
+					//if (sResultNodes[sPivot]->seq.size() >= 2 && sResultNodes[sPivot]->seq[0] == 3 && sResultNodes[sPivot] -> seq[2] == 224){
+					//	cout << sPivot << " ";
+					//	cout << sResult[sPivot] << endl;
+					//	system("pause");
+					//}
+					if (sResult[sPivot] >= minSup){
 						sResultNodes[sPivot]->sList = sList->get();
 						sResultNodes[sPivot]->iList = sList->get();
 						sResultNodes[sPivot]->sListLen = sListSize;
 						sResultNodes[sPivot]->iListLen = tmp;
 						sResultNodes[sPivot]->iListStart = sListSize - tmp;
+						sResultNodes[iPivot]->support = sResult[sPivot];
 						tmp++;
-						fStack->push(sResultNodes[sPivot]);
+						fStack->push(sResultNodes[sPivot]); 
+						vector<int> temp = sResultNodes[sPivot]->seq;
+						for (int i = 0; i < temp.size(); i++){
+							if (temp[i] != -1){
+								cout << temp[i] << " ";
+							}
+							else{
+								cout << ", ";
+							}
+						}
+						cout << sResult[sPivot];
+						cout << endl;
 					}
 					else{
 						sResultNodes[sPivot]->iBitmap->CudaFree();
@@ -504,4 +571,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup){
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;
+}
+
+__global__ void tempDebug(int* input){
+	printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", input[1], input[67], input[72], input[117], input[128], input[156], input[191]);
 }
