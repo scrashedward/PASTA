@@ -99,13 +99,18 @@ public:
 			}
 		}
 		else{
-			for (int i = 0; i < 5; i++){
-				if (cudaFree(gpuMemList[i]) != cudaSuccess){
-					cout << "cudaFree error in gpuMemList" << endl;
-					system("pause");
-					exit(-1);
-				}
+			if (cudaFree(gpuMemList[0]) != cudaSuccess){
+				cout << "cudaFree error in gpuMemList" << endl;
+				system("pause");
+				exit(-1);
 			}
+			//for (int i = 0; i < 5; i++){
+			//	if (cudaFree(gpuMemList[i]) != cudaSuccess){
+			//		cout << "cudaFree error in gpuMemList" << endl;
+			//		system("pause");
+			//		exit(-1);
+			//	}
+			//}
 		}
 	}
 	void SetBit(int bitmapType, int number, int i){
@@ -151,14 +156,21 @@ public:
 			}
 		}
 		else{
-			for (int i = 0; i < 5; i++){
-				cudaError error = cudaMalloc(&gpuMemList[i], sizeof(int)* size[i]);
-				if ( error != cudaSuccess){
-					cout << error << endl;
-					cout << "MemAlloc fail" << endl;
-					system("pause");
-					exit(-1);
-				}
+			int sum = 0;
+			for (auto i : size){
+				sum += i;
+			}
+			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sum);
+			if (error != cudaSuccess){
+				cout << error << endl;
+				cout << "MemAlloc fail" << endl;
+				system("pause");
+				exit(-1);
+			}
+			sum = 0;
+			for (int i = 0; i < 4; i++){
+				sum += size[i];
+				gpuMemList[i + 1] = (gpuMemList[0] + sum);
 			}
 		}
 	}
