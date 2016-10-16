@@ -331,8 +331,8 @@ int getBitmapType(int size){
 }
 
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
-	clock_t mining_start, mining_end;
-	mining_start = clock();
+	clock_t tmining_start, tmining_end;
+	tmining_start = clock();
 	stack<TreeNode*> currentStack;
 	TreeNode* currentNodePtr;
 	int sWorkSize = 0;
@@ -355,6 +355,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	double timeForiNewIBitmap = 0;
 	double timeForsSeq = 0;
 	double timeForiSeq = 0;
+	double timeForPostProcessing = 0;
 
 	TreeNode ** sResultNodes = new TreeNode*[MAX_WORK_SIZE];
 	TreeNode ** iResultNodes = new TreeNode*[MAX_WORK_SIZE];
@@ -498,6 +499,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					igList[i].clear();
 				}
 			}
+			t1 = clock();
 			int sPivot = sWorkSize;
 			int iPivot = iWorkSize;
 			while (!currentStack.empty()){
@@ -618,11 +620,13 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				system("pause");
 				exit(-1);
 			}
+			t2 = clock();
+			timeForPostProcessing += (t2 - t1);
 		}
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;
-	mining_end = clock();
+	tmining_end = clock();
 	cout << "Time for s new node:" << timeForsNewNode << endl;
 	cout << "Time for s new ibitmap:" << timeForsNewIBitmap << endl;
 	cout << "Time for s seq:" << timeForsSeq << endl;
@@ -631,7 +635,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "Time for i new ibitmap:" << timeForiNewIBitmap << endl;
 	cout << "Time for i seq:" << timeForiSeq << endl;
 	cout << "Time for i Add to tail:" << timeForiAddToTail << endl;
-	cout << "total time for mining end:" << endl;	
+	cout << "total time for mining end:" << tmining_end - tmining_start << endl;
+	cout << "Time for post processing: " << timeForPostProcessing << endl;
 }
 
 __global__ void tempDebug(int* input){
