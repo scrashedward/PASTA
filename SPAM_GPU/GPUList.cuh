@@ -6,7 +6,7 @@
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
 __global__ void MemCheck(int ** src1);
-__device__ int SBitmap(unsigned int n, int bitmapType);
+__host__ __device__ int SBitmap(unsigned int n, int bitmapType);
 __host__ __device__ int hibit(unsigned int n);
 __device__ int hibit64(unsigned long long int n);
 __host__ __device__ int SupportCount(int n, int bitmapType);

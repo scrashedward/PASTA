@@ -34,7 +34,7 @@ int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
-__global__ void tempDebug(int* input);
+__global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
 
@@ -48,6 +48,15 @@ int main(int argc, char** argv){
 	MAX_WORK_SIZE = MAX_BLOCK_NUM * 128;
 	MAX_THREAD_NUM = 1024;
 
+	int DeviceCount;
+	cudaGetDeviceCount(&DeviceCount);
+	cout << "Detect " << DeviceCount << " cuda devices" << endl;
+	for (int i = 0; i < DeviceCount; i++){
+		cudaDeviceProp deviceProp;
+		cudaGetDeviceProperties(&deviceProp, i);
+		cout << "device " << i << " name: " << deviceProp.name << endl;
+	}
+
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
 	int *index = NULL;
@@ -58,11 +67,6 @@ int main(int argc, char** argv){
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
-	//unsigned int gggg = 1;
-	//cout << (gggg << 30) << " " << (gggg << 15)  << " "<< ((gggg << 31) >> 16) << endl;
-	//cout << hibit(1 << 31) << endl;
-	//cout << SBitmap(1 << 31, 2) << endl;
-	//system("pause");
 
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
@@ -491,6 +495,13 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				tmp = 0;
 				for (int i = currentNodePtr->sListLen -1; i >=0; i--){
 					sPivot--;
+					if (sResultNodes[sPivot]->seq[0] == 3 && index[currentNodePtr->sList->list[i]] == 224){
+						for (int j = 0; j < 5; j++){
+							tempDebug << <1, 1 >> >(sResultNodes[sPivot]->iBitmap->gpuMemList[j], SeqBitmap::size[j], j);
+							cudaDeviceSynchronize();
+						}
+						cout << "Support: " <<  sResult[sPivot] << endl;;
+					}
 					if (sResult[sPivot] >= minSup){
 						sResultNodes[sPivot]->sList = sList->get();
 						sResultNodes[sPivot]->iList = sList->get();
@@ -573,7 +584,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 		}
 	}
 	for (int i = 0; i < sList->index; i++){
-		CpuSupportCounting(currentNode->iBitmap, TreeNode::f1[sList->list[i]]->iBitmap, tempNode->iBitmap, true);
+		int sup = CpuSupportCounting(currentNode->iBitmap, TreeNode::f1[sList->list[i]]->iBitmap, tempNode->iBitmap, true);
 		tempNode->sList = sList;
 		tempNode->sListLen = sList->index;
 		tempNode->iList = sList;
@@ -591,7 +602,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 				cout << ", ";
 			}
 		}
-		cout << endl;
+		cout << " " << sup << endl;
 		DFSPruning(tempNode, minSup, index);
 	}
 	for (int i = 0; i < iLen; i++){
@@ -600,7 +611,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 		}
 	}
 	for (int i = 0; i < iList->index; i++){
-		CpuSupportCounting(currentNode->iBitmap, TreeNode::f1[iList->list[i]]->iBitmap, tempNode->iBitmap, false);
+		int sup = CpuSupportCounting(currentNode->iBitmap, TreeNode::f1[iList->list[i]]->iBitmap, tempNode->iBitmap, false);
 		tempNode->sList = sList;
 		tempNode->sListLen = sList->index;
 		tempNode->iList = iList;
@@ -617,7 +628,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 				cout << ", ";
 			}
 		}
-		cout << endl;
+		cout << " " << sup << endl;
 		DFSPruning(tempNode, minSup, index);
 	}
 
@@ -658,6 +669,10 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 }
 
 
-__global__ void tempDebug(int* input){
-	printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", input[1], input[67], input[72], input[117], input[128], input[156], input[191]);
+__global__ void tempDebug(int* input, int length, int bitmapType){
+	int sup = 0;
+	for (int i = 0; i < length; i++){
+		sup += SupportCount(input[i], bitmapType);
+	}
+	printf("%d\n", sup);
 }
