@@ -192,12 +192,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 				s1 = SBitmap(gsrc1[threadPos], bitmapType);
 			}
 			else{
-				//if (currentBlock < lmax || currentBlock > lmin){
-				//if ((currentBlock <= 130&& currentBlock >= 105) && tid == 0){
-				//	printf("%d %x\n", currentBlock, src1[currentBlock]);
-				//	s1 = src1[currentBlock][0];
-				//}
-				//s1 = src1[currentBlock][0];
 				s1 = gsrc1[threadPos];
 			}
 			s2 = gsrc2[threadPos];
@@ -225,9 +219,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	//if (tid == 0 && currentBlock == 747 && type && bitmapType == 2){
 	if (tid == 0){
 			result[currentBlock] += sup[0];
-			//printf("sup in GPU is %d\n", sup[0]);
-			//printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", SBitmap(src1[747][1], 2), SBitmap(src1[747][67], 2), SBitmap(src1[747][72], 2), SBitmap(src1[747][117], 2), SBitmap(src1[747][128], 2), SBitmap(src1[747][156], 2), SBitmap(src1[747][191], 2));
-			//printf("[5]:%d [371]:%d [391]:%d [618]:%d [676]:%d [812]:%d [967]:%d\n", src2[747][1], src2[747][67], src2[747][72], src2[747][117], src2[747][128], src2[747][156], src2[747][191]);
 	}
 }
 

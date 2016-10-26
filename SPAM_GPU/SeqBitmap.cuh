@@ -203,11 +203,13 @@ stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 class SList{
 public:
 	int count;
+	int index;
 	int* list;
 
 	SList(int l){
 		list = new int[l];
 		count = 0;
+		index = 0;
 	}
 
 	SList* get(){
@@ -221,6 +223,11 @@ public:
 			delete[] list;
 		}
 		return count;
+	}
+
+	int add(int i){
+		list[index++] = i;
+		return index;
 	}
 };
 
