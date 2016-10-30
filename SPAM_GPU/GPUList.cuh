@@ -131,6 +131,8 @@ public:
 			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
 			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
 			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			cudaError_t err = cudaGetLastError();
+			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 			cudaDeviceSynchronize();
 		}
 		CudaMemcpy(true);
@@ -146,15 +148,15 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	int tid = threadIdx.x;
 	int bid = blockIdx.x;
 	int blockSize = blockDim.x;
-	int *gsrc1, *gsrc2, *gdst;
+	unsigned int *gsrc1, *gsrc2, *gdst;
 
 	int currentBlock = oldBlock + bid;
 	if (currentBlock >= listLen) return;
 
 	sup[tid] = 0;
-	gsrc1 = src1[currentBlock];
-	gsrc2 = src2[currentBlock];
-	gdst = dst[currentBlock];
+	gsrc1 = (unsigned*) src1[currentBlock];
+	gsrc2 = (unsigned*) src2[currentBlock];
+	gdst =  (unsigned*) dst[currentBlock];
 	int s1, s2, d;
 
 	__syncthreads();
@@ -175,17 +177,38 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			break;
 		}
 		if (bitmapType == 4){
-			long long int s1, s2;
+			/*unsigned long long int s1, s2;
 			s1 = (gsrc1[2 * threadPos] << 32) + gsrc1[2 * threadPos + 1];
 			s2 = (gsrc2[2 * threadPos] << 32) + gsrc2[2 * threadPos + 1];
 			if (type == true){
 				s1 = hibit64(s1);
 			}
-			s2 = hibit64(s2);
-			long long int d = s1 & s2;
+			//s2 = hibit64(s2);
+			unsigned long long int d = s1 & s2;
 			if (d != 0) sup[tid]++;
 			gdst[2 * threadPos] = (int)(d >> 32);
 			gdst[2 * threadPos + 1] = (int)(d & 0xFFFFFFFF);
+			*/
+			unsigned int s11, s12, s21, s22, d1, d2;
+			s11 = gsrc1[2 * threadPos];
+			s12 = gsrc1[2 * threadPos + 1];
+			s21 = gsrc2[2 * threadPos];
+			s22 = gsrc2[2 * threadPos + 1];
+			if (type){
+				if (s11){
+					s11 = hibit(s11);
+					s12 = 0xFFFFFFFF;
+				}
+				else{
+					s12 = hibit(s12);
+				}
+			}
+			d1 = s11 & s21;
+			d2 = s12 & s22;
+			if (d1 || d2) sup[tid]++;
+			gdst[2 * threadPos] = d1;
+			gdst[2 * threadPos + 1] = d2;
+
 		}
 		else{
 			if (type){
@@ -197,28 +220,33 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			s2 = gsrc2[threadPos];
 			d = s1 & s2;
 			sup[tid] += SupportCount( d, bitmapType);
+			//if (currentBlock == 747&& (threadPos == 33 || threadPos == 58) && bitmapType == 1 && type){
+			//	printf("s1: %d s2: %d d: %d sup: %d tid: %d sup[tid]: %d\n", s1,s2,d, SupportCount(d,bitmapType), tid, sup[tid]);
+			//}
 			gdst[threadPos] = d;
 		}
 	}
 	__syncthreads();
 
-	for (int s = blockSize / 2; s > 32; s >>= 1){
+	for (int s = blockSize / 2; s > 0; s >>= 1){
 		if (tid < s){
 			sup[tid] += sup[tid + s];
 		}
 		__syncthreads();
 	}
-	if (tid < 32){
-		sup[tid] += sup[tid + 32];
-		sup[tid] += sup[tid + 16];
-		sup[tid] += sup[tid + 8];
-		sup[tid] += sup[tid + 4];
-		sup[tid] += sup[tid + 2];
-		sup[tid] += sup[tid + 1];
-	}
-	//if (tid == 0 && currentBlock == 747 && type && bitmapType == 2){
+	//if (tid < 32){
+	//	sup[tid] += sup[tid + 32];
+	//	sup[tid] += sup[tid + 16];
+	//	sup[tid] += sup[tid + 8];
+	//	sup[tid] += sup[tid + 4];
+	//	sup[tid] += sup[tid + 2];
+	//	sup[tid] += sup[tid + 1];
+	//}
 	if (tid == 0){
 			result[currentBlock] += sup[0];
+			//if (currentBlock == 747 && type){
+			//	printf("%d %d\n", result[currentBlock], sup[0]);
+			//}
 	}
 }
 

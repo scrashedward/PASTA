@@ -142,7 +142,7 @@ public:
 			bitmap[bitmapType][index] |= Bit32Table[i];
 			break;
 		case 4:
-			index = number * 2 + i > 31 ? 1 : 0;
+			index = number * 2 + (i > 31 ? 1 : 0);
 			bitmap[bitmapType][index] |= Bit32Table[i % 32];
 			break;
 		default:

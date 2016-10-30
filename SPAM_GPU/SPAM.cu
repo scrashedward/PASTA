@@ -23,6 +23,9 @@ struct DbInfo{
 		cNum = c;
 	}
 };
+//C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\IBM Quest Data Generator\seq50.10.5.1.txt
+//C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\SPAM\Spam-1.3.3\Debug\input.txt
+
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
@@ -56,6 +59,8 @@ int main(int argc, char** argv){
 		cudaGetDeviceProperties(&deviceProp, i);
 		cout << "device " << i << " name: " << deviceProp.name << endl;
 	}
+
+	cudaSetDevice(0);
 
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
@@ -367,9 +372,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
-					//tempNode->seq.push_back(-1);
-					//tempNode->seq.push_back(index[currentNodePtr->sList->list[j]]);
 					sResultNodes[sWorkSize] = tempNode;
+
 					sWorkSize++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
@@ -434,6 +438,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					}
 				}
 			}
+			//fgetc(stdin);
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
 					sgList[i].clear();
@@ -495,13 +500,15 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				tmp = 0;
 				for (int i = currentNodePtr->sListLen -1; i >=0; i--){
 					sPivot--;
-					if (sResultNodes[sPivot]->seq[0] == 3 && index[currentNodePtr->sList->list[i]] == 224){
-						for (int j = 0; j < 5; j++){
-							tempDebug << <1, 1 >> >(sResultNodes[sPivot]->iBitmap->gpuMemList[j], SeqBitmap::size[j], j);
-							cudaDeviceSynchronize();
-						}
-						cout << "Support: " <<  sResult[sPivot] << endl;;
-					}
+					//if (sResultNodes[sPivot]->seq[0] == 3 && index[currentNodePtr->sList->list[i]] == 11){
+					//	for (int j = 0; j < 5; j++){
+					//		tempDebug << <1, 1 >> >(sResultNodes[sPivot]->iBitmap->gpuMemList[j], SeqBitmap::size[j], j);
+					//		//tempDebug << <1, 1 >> >(currentNodePtr->iBitmap->gpuMemList[j], SeqBitmap::size[j], j);
+					//		cudaDeviceSynchronize();
+					//	}
+					//	cout << "Support: " <<  sResult[sPivot] << endl;;
+					//	cout << sPivot << endl;
+					//}
 					if (sResult[sPivot] >= minSup){
 						sResultNodes[sPivot]->sList = sList->get();
 						sResultNodes[sPivot]->iList = sList->get();
@@ -509,7 +516,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 						sResultNodes[sPivot]->iListLen = tmp;
 						sResultNodes[sPivot]->iListStart = sListSize - tmp;
 						if (sResultNodes[sPivot]->iListStart < 0){
-							cout << "this should not happen" << endl;
+							cout << "iListStart < 0" << endl;
 							system("pause");
 						}
 						sResultNodes[sPivot]->support = sResult[sPivot];
@@ -670,9 +677,19 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 
 
 __global__ void tempDebug(int* input, int length, int bitmapType){
+
 	int sup = 0;
-	for (int i = 0; i < length; i++){
-		sup += SupportCount(input[i], bitmapType);
+	if (bitmapType < 4){
+		for (int i = 0; i < length; i++){
+			sup += SupportCount(input[i], bitmapType);
+		}
+	}
+	else{
+		for (int i = 0; i < length; i += 2){
+			if (input[i] || input[i + 1]){
+				sup += 1;
+			}
+		}
 	}
 	printf("%d\n", sup);
 }
