@@ -46,10 +46,30 @@ int main(int argc, char** argv){
 	// the minimun support in percentage
 	float minSupPer = atof(argv[2]);
 
+
 	MAX_BLOCK_NUM = 512;
-	WORK_SIZE = MAX_BLOCK_NUM * 64;
-	MAX_WORK_SIZE = MAX_BLOCK_NUM * 128;
+	WORK_SIZE = MAX_BLOCK_NUM * 8;
+	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
 	MAX_THREAD_NUM = 1024;
+
+	for (int i = 3; i < argc; i+=2){
+		if (argv[i] == "-b"){
+			MAX_BLOCK_NUM = atoi(argv[i + 1]);
+		}
+		else if (argv[i] == "-w"){
+			WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
+		}
+		else if (argv[i] == "-m"){
+			MAX_WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
+		}
+		else if (argv[i] == "-t"){
+			MAX_THREAD_NUM = atoi(argv[i + 1]);
+		}
+	}
+	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
+	cout << "WORK_SIZE:" << WORK_SIZE << endl;
+	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
+	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
 
 	int DeviceCount;
 	cudaGetDeviceCount(&DeviceCount);
