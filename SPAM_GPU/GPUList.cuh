@@ -33,6 +33,9 @@ public:
 		src2 = new int*[size];
 		dst = new int*[size];
 		hasGPUMem = false;
+		gsrc1 = 0;
+		gsrc2 = 0;
+		gdst = 0;
 	}
 	
 	void AddToTail(int *s1, int *s2, int *d, bool debug = false){
@@ -54,16 +57,19 @@ public:
 				system("pause");
 				exit(-1);
 			}
+			gsrc1 = 0;
 			if (cudaFree(gsrc2) != cudaSuccess){
 				cout << "cudaFree error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
+			gsrc2 = 0;
 			if (cudaFree(gdst) != cudaSuccess){
 				cout << "cudaFree error in gdst" << endl;
 				system("pause");
 				exit(-1);
 			}
+			gdst = 0;
 			hasGPUMem = false;
 		}
 	}
@@ -81,17 +87,6 @@ public:
 				system("pause");
 				exit(-1);
 			}
-			cudaDeviceSynchronize();
-			if (debug){
-				for (int i = 0; i < 5; i++){
-					cout << "src1[" << i + 111 << "]:" << src1[i + 111] << " ";
-				}
-				cout << endl;
-				MemCheck << <1, 1 >> >(gsrc1);
-				cudaDeviceSynchronize();
-				cout << endl;
-			}
-			
 			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc2" << endl;
 				system("pause");
@@ -128,14 +123,84 @@ public:
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
 		CudaMemcpy(false, debug);
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
-			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
 			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 			cudaDeviceSynchronize();
 		}
 		CudaMemcpy(true);
+	}
+
+	void CudaMemcpy(bool kind, int MAX_SIZE, int begin, int end, cudaStream_t stream){
+		if (gsrc1 == 0){
+			hasGPUMem = true;
+			if (cudaMalloc(&gsrc1, sizeof(int*)* MAX_SIZE) != cudaSuccess){
+				cout << "cudaMalloc error in gsrc1" << endl;
+				cudaError_t err = cudaGetLastError();
+				if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+				system("pause");
+				exit(-1);
+			}
+		}
+		if (gsrc2 == 0){
+			if (cudaMalloc(&gsrc2, sizeof(int*)*MAX_SIZE) != cudaSuccess){
+				cout << "cudaMalloc error in gsrc2" << endl;
+				cudaError_t err = cudaGetLastError();
+				if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+				system("pause");
+				exit(-1);
+			}
+		}
+		if (gdst == 0){
+			if (cudaMalloc(&gdst, sizeof(int*)*MAX_SIZE) != cudaSuccess){
+				cout << "cudaMalloc error gdist" << endl;
+				cudaError_t err = cudaGetLastError();
+				if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+				system("pause");
+				exit(-1);
+			}
+		}
+		if (cudaMemcpyAsync(gsrc1+begin, src1+begin, sizeof(int*)*(end - begin), cudaMemcpyHostToDevice, stream) != cudaSuccess){
+			cout << "cudaMemcpy error in gsrc1" << endl;
+			cudaError_t err = cudaGetLastError();
+			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			system("pause");
+			exit(-1);
+		}
+		if (cudaMemcpyAsync(gsrc2+begin, src2+begin, sizeof(int*)*(end-begin), cudaMemcpyHostToDevice, stream) != cudaSuccess){
+			cout << "cudaMemcpy error in gsrc2" << endl;
+			cudaError_t err = cudaGetLastError();
+			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			system("pause");
+			exit(-1);
+		}
+		if (cudaMemcpyAsync(gdst+begin, dst+begin, sizeof(int*)*(end - begin), cudaMemcpyHostToDevice, stream) != cudaSuccess){
+			cout << "cudaMemcpy error in gdist" << endl;
+			cudaError_t err = cudaGetLastError();
+			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			system("pause");
+			exit(-1);
+		}
+		else if (kind){
+			cudaError_t error;
+			error = cudaMemcpyAsync(result+begin, gresult + begin, sizeof(int)*(end-begin), cudaMemcpyDeviceToHost, stream);
+			if (error != cudaSuccess){
+				cout << error << endl;
+				cout << "cudaMemcpy error in gresult" << endl;
+				system("pause");
+				exit(-1);
+			}
+		}
+	}
+
+	void SupportCounting(int blockNum, int maxSize, int threadNum, int bitmapType, bool type, int begin, int end, cudaStream_t stream){
+		CudaMemcpy(false, maxSize, begin, end, stream);
+		for (int oldBlock = 0; oldBlock < end - begin + blockNum; oldBlock += blockNum){
+			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum, stream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			cudaError_t err = cudaGetLastError();
+			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+		}
+		CudaMemcpy(true, maxSize, begin, end, stream);
 	}
 };
 
