@@ -37,6 +37,7 @@ int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
+int PIPELINE_WORK_SIZE;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -48,9 +49,10 @@ int main(int argc, char** argv){
 
 
 	MAX_BLOCK_NUM = 512;
-	WORK_SIZE = MAX_BLOCK_NUM * 8;
+	WORK_SIZE = MAX_BLOCK_NUM * 16;
 	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
 	MAX_THREAD_NUM = 1024;
+	PIPELINE_WORK_SIZE = MAX_BLOCK_NUM * 1;
 
 	for (int i = 3; i < argc; i+=2){
 		if (argv[i] == "-b"){
@@ -420,12 +422,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 							sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 						}
 					}
-					if (sWorkSize % (1000*MAX_BLOCK_NUM) == 0){
+					if (sWorkSize % PIPELINE_WORK_SIZE == 0){
 						for (int i = 0; i < 5; i++){
 							if (SeqBitmap::size[i] > 0){
-								if (sWorkSize > 0){
-									sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_WORK_SIZE,MAX_THREAD_NUM, i, true, currentSSize, sWorkSize, cudaStream);
-								}
+								sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_WORK_SIZE, MAX_THREAD_NUM, i, true, currentSSize, sWorkSize, cudaStream);
 							}
 						}
 						currentSSize = sWorkSize;
@@ -436,7 +436,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
-					//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
 					iResultNodes[iWorkSize] = tempNode;
 					iWorkSize++;
 					for (int i = 0; i < 5; i++){
@@ -444,12 +443,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 							igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 						}
 					}
-					if (iWorkSize % (1000 * MAX_BLOCK_NUM) == 0){
+					if (iWorkSize % PIPELINE_WORK_SIZE == 0){
 						for (int i = 0; i < 5; i++){
 							if (SeqBitmap::size[i] > 0){
-								if (iWorkSize > 0){
-									igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_WORK_SIZE, MAX_THREAD_NUM, i, false, currentISize, iWorkSize, cudaStream);
-								}
+								igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_WORK_SIZE, MAX_THREAD_NUM, i, false, currentISize, iWorkSize, cudaStream);
 							}
 						}
 						currentISize = iWorkSize;
@@ -504,6 +501,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				int iListStart = currentNodePtr->iListStart;
 				for (int i = currentNodePtr->iListLen - 1; i >= 0; i--){
 					iPivot--;
+					//if (iResultNodes[iPivot]->seq[0] = 3 && index[currentNodePtr->iList->list[i + iListStart]] == 771){
+					//	cout << "the support is: " << iResult[iPivot] << " the iPivot: " << iPivot << endl;
+					//	system("pause");
+					//}
 					if (iResult[iPivot] >= minSup){
 						iResultNodes[iPivot]->sList = sList->get();
 						iResultNodes[iPivot]->sListLen = sListSize;

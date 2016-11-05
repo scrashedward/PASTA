@@ -126,7 +126,6 @@ public:
 			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
-			cudaDeviceSynchronize();
 		}
 		CudaMemcpy(true);
 	}
@@ -196,7 +195,7 @@ public:
 	void SupportCounting(int blockNum, int maxSize, int threadNum, int bitmapType, bool type, int begin, int end, cudaStream_t stream){
 		CudaMemcpy(false, maxSize, begin, end, stream);
 		for (int oldBlock = 0; oldBlock < end - begin + blockNum; oldBlock += blockNum){
-			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum, stream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum, stream >> >(gsrc1+begin, gsrc2+begin, gdst+begin, gresult+begin, end - begin, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
