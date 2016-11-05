@@ -67,6 +67,9 @@ int main(int argc, char** argv){
 		else if (argv[i] == "-t"){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
 		}
+		else if (argv[i] == "-p"){
+			PIPELINE_WORK_SIZE = atoi(argv[i + 1]) * MAX_BLOCK_NUM;
+		}
 	}
 	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
 	cout << "WORK_SIZE:" << WORK_SIZE << endl;
