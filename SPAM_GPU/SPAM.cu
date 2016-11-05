@@ -101,8 +101,6 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMemcpy();
 	}
-	
-	clock_t t1, t2;
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
@@ -353,7 +351,7 @@ int getBitmapType(int size){
 }
 
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
-	clock_t tmining_start, tmining_end;
+	clock_t tmining_start, tmining_end, t1, total = 0;
 	tmining_start = clock();
 	stack<TreeNode*> currentStack;
 	TreeNode* currentNodePtr;
@@ -374,7 +372,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		igList[i].result = iResult;
 	}
 	while (!(fStack->empty())){
-		cout << "fStack size: " << fStack->size() << endl;
+		//cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
 		while (min(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
@@ -446,6 +444,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				exit(-1);
 			}
 			//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
+			
+			t1 = clock();
+
 			for (int i = 0; i < 5; i++){
 				sgList[i].gresult = sgresult;
 				igList[i].gresult = igresult;
@@ -458,6 +459,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					}
 				}
 			}
+
+			total += clock() - t1;
+
 			//fgetc(stdin);
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
@@ -500,16 +504,16 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 						tmp++;
 						fStack->push(iResultNodes[iPivot]);
 						vector<int> temp = iResultNodes[iPivot]->seq;
-						for (int i = 0; i < temp.size(); i++){
-							if (temp[i] != -1){
-								cout << temp[i] << " ";
-							}
-							else{
-								cout << ", ";
-							}
-						}
-						cout << iResult[iPivot];
-						cout << endl;
+						//for (int i = 0; i < temp.size(); i++){
+						//	if (temp[i] != -1){
+						//		cout << temp[i] << " ";
+						//	}
+						//	else{
+						//		cout << ", ";
+						//	}
+						//}
+						//cout << iResult[iPivot];
+						//cout << endl;
 					}
 					else{
 						iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -545,16 +549,16 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 						tmp++;
 						fStack->push(sResultNodes[sPivot]); 
 						vector<int> temp = sResultNodes[sPivot]->seq;
-						for (int i = 0; i < temp.size(); i++){
-							if (temp[i] != -1){
-								cout << temp[i] << " ";
-							}
-							else{
-								cout << ", ";
-							}
-						}
-						cout << sResult[sPivot];
-						cout << endl;
+						//for (int i = 0; i < temp.size(); i++){
+						//	if (temp[i] != -1){
+						//		cout << temp[i] << " ";
+						//	}
+						//	else{
+						//		cout << ", ";
+						//	}
+						//}
+						//cout << sResult[sPivot];
+						//cout << endl;
 					}
 					else{
 						sResultNodes[sPivot]->iBitmap->CudaFree();
@@ -594,6 +598,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	delete[] iResultNodes;
 	tmining_end = clock();
 	cout << "total time for mining end:" << tmining_end - tmining_start << endl;
+	cout << "total time for kernel execution: " << total << endl;
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){

@@ -81,16 +81,6 @@ public:
 				system("pause");
 				exit(-1);
 			}
-			cudaDeviceSynchronize();
-			if (debug){
-				for (int i = 0; i < 5; i++){
-					cout << "src1[" << i + 111 << "]:" << src1[i + 111] << " ";
-				}
-				cout << endl;
-				MemCheck << <1, 1 >> >(gsrc1);
-				cudaDeviceSynchronize();
-				cout << endl;
-			}
 			
 			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
 				cout << "cudaMalloc error in gsrc2" << endl;
@@ -133,7 +123,6 @@ public:
 			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
-			cudaDeviceSynchronize();
 		}
 		CudaMemcpy(true);
 	}
