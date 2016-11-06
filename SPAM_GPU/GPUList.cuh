@@ -28,6 +28,7 @@ public:
 	int length;
 	bool hasGPUMem;
 	static clock_t kernelTime;
+	static clock_t copyTime;
 
 	GPUList(int size){
 		length = 0;
@@ -71,6 +72,8 @@ public:
 	}
 
 	void CudaMemcpy(bool kind, bool debug = false){
+		cudaStream_t cudaStream;
+		cudaStreamCreate(&cudaStream);
 		if (!kind){
 			hasGPUMem = true;
 			if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
@@ -118,8 +121,10 @@ public:
 	}
 
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
-		CudaMemcpy(false, debug);
 		clock_t t1 = clock();
+		CudaMemcpy(false, debug);
+		copyTime += clock() - t1;
+		t1 = clock();
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
 			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
 			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
@@ -128,11 +133,14 @@ public:
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
 		kernelTime += (clock() - t1);
+		t1 = clock();
 		CudaMemcpy(true);
+		copyTime += clock() - t1;
 	}
 };
 
 clock_t GPUList::kernelTime = 0;
+clock_t GPUList::copyTime = 0;
 
 #endif
 
