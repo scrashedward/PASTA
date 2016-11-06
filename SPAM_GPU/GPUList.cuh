@@ -2,6 +2,7 @@
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
 #include <iostream>
+#include <time.h>
 
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
@@ -26,6 +27,7 @@ public:
 	int * gresult;
 	int length;
 	bool hasGPUMem;
+	static clock_t kernelTime;
 
 	GPUList(int size){
 		length = 0;
@@ -117,6 +119,7 @@ public:
 
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
 		CudaMemcpy(false, debug);
+		clock_t t1 = clock();
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
 			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
 			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
@@ -124,9 +127,12 @@ public:
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
+		kernelTime += (clock() - t1);
 		CudaMemcpy(true);
 	}
 };
+
+clock_t GPUList::kernelTime = 0;
 
 #endif
 

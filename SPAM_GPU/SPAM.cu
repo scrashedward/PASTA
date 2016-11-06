@@ -351,7 +351,7 @@ int getBitmapType(int size){
 }
 
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
-	clock_t tmining_start, tmining_end, t1, total = 0;
+	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
 	tmining_start = clock();
 	stack<TreeNode*> currentStack;
 	TreeNode* currentNodePtr;
@@ -372,6 +372,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		igList[i].result = iResult;
 	}
 	while (!(fStack->empty())){
+		t1 = clock();
 		//cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
@@ -417,6 +418,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				fStack->pop();
 			}
 		}
+		prepare += clock() - t1;
 		if (SeqBitmap::memPos){
 
 		}
@@ -462,6 +464,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 			total += clock() - t1;
 
+			t1 = clock();
 			//fgetc(stdin);
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
@@ -590,8 +593,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				system("pause");
 				exit(-1);
 			}
-			//t2 = clock();
-			//timeForPostProcessing += (t2 - t1);
+			post += clock() - t1;
 		}
 	}
 	delete [] sResultNodes;
@@ -599,6 +601,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	tmining_end = clock();
 	cout << "total time for mining end:" << tmining_end - tmining_start << endl;
 	cout << "total time for kernel execution: " << total << endl;
+	cout << "total time for data preparing:" << prepare << endl;
+	cout << "total time for result processing: " << post << endl;
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
