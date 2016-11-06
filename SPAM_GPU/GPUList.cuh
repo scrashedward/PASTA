@@ -35,7 +35,23 @@ public:
 		src1 = new int*[size];
 		src2 = new int*[size];
 		dst = new int*[size];
-		hasGPUMem = false;
+		//hasGPUMem = false;
+		if (cudaMalloc(&gsrc1, sizeof(int*)* size) != cudaSuccess){
+			cout << "cudaMalloc error in gsrc1" << endl;
+			system("pause");
+			exit(-1);
+		}
+		if (cudaMalloc(&gsrc2, sizeof(int*)*size) != cudaSuccess){
+			cout << "cudaMalloc error in gsrc2" << endl;
+			system("pause");
+			exit(-1);
+		}
+		if (cudaMalloc(&gdst, sizeof(int*)*size) != cudaSuccess){
+			cout << "cudaMalloc error gdist" << endl;
+			system("pause");
+			exit(-1);
+		}
+
 	}
 	
 	void AddToTail(int *s1, int *s2, int *d, bool debug = false){
@@ -51,7 +67,7 @@ public:
 
 	void clear(){
 		length = 0;
-		if (hasGPUMem){
+		/*if (hasGPUMem){
 			if (cudaFree(gsrc1) != cudaSuccess){
 				cout << "cudaFree error in gsrc1" << endl;
 				system("pause");
@@ -68,40 +84,40 @@ public:
 				exit(-1);
 			}
 			hasGPUMem = false;
-		}
+		}*/
 	}
 
 	void CudaMemcpy(bool kind, bool debug = false){
-		cudaStream_t cudaStream;
-		cudaStreamCreate(&cudaStream);
+		//cudaStream_t cudaStream;
+		//cudaStreamCreate(&cudaStream);
 		if (!kind){
-			hasGPUMem = true;
-			if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
-				cout << "cudaMalloc error in gsrc1" << endl;
-				system("pause");
-				exit(-1);
-			}
+			//hasGPUMem = true;
+			//if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
+			//	cout << "cudaMalloc error in gsrc1" << endl;
+			//	system("pause");
+			//	exit(-1);
+			//}
 			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
 				exit(-1);
 			}
 			
-			if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
-				cout << "cudaMalloc error in gsrc2" << endl;
-				system("pause");
-				exit(-1);
-			}
+			//if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
+			//	cout << "cudaMalloc error in gsrc2" << endl;
+			//	system("pause");
+			//	exit(-1);
+			//}
 			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMalloc(&gdst, sizeof(int*)*length) != cudaSuccess){
-				cout << "cudaMalloc error gdist" << endl;
-				system("pause");
-				exit(-1);
-			}
+			//if (cudaMalloc(&gdst, sizeof(int*)*length) != cudaSuccess){
+			//	cout << "cudaMalloc error gdist" << endl;
+			//	system("pause");
+			//	exit(-1);
+			//}
 			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
 				system("pause");
