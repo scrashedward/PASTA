@@ -35,15 +35,15 @@ int getBitmapType(int size);
 void FindSeqPattern(stack<TreeNode*>*, int, int*);
 void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
-void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPUList *igList, stack<TreeNode*>* currentStack, int * sResult, int * iResult, TreeNode **sResultNodes, TreeNode **iResultNodes, stack<TreeNode*>* fStack, int *index, int minSup, int tag);
+void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPUList *igList, stack<TreeNode*>* currentStack, int * sResult, int * iResult, TreeNode **sResultNodes, TreeNode **iResultNodes, int *index, int minSup, int tag);
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
 thread SupportCountThread;
-thread ResultCollectThread[2];
 bool SCTRunning;
-mutex fstackMutex;
+clock_t prepare, kernel, post;
+vector<TreeNode*> resultCollector;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -52,7 +52,9 @@ int main(int argc, char** argv){
 	char * input = argv[1];
 	// the minimun support in percentage
 	float minSupPer = atof(argv[2]);
-
+	prepare = 0;
+	kernel = 0;
+	post = 0;
 
 	MAX_BLOCK_NUM = 512;
 	WORK_SIZE = MAX_BLOCK_NUM * 8;
@@ -360,7 +362,7 @@ int getBitmapType(int size){
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	SCTRunning = false;
 	short tag = 0;
-	clock_t tmining_start, tmining_end, t1, total = 0;
+	clock_t tmining_start, tmining_end, t1;
 	tmining_start = clock();
 	stack<TreeNode*> currentStack[2];
 	TreeNode* currentNodePtr;
@@ -384,46 +386,38 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	}
 	
 	while (true){
-		fstackMutex.lock();
+		t1 = clock();
 		if (fStack->empty()){
-			fstackMutex.unlock();
 			if (SCTRunning){
-				fstackMutex.unlock();
 				SupportCountThread.join();
+				for (auto i : resultCollector){
+					fStack->push(i);
+				}
+				resultCollector.clear();
 				SCTRunning = false;
 			}
-			//ResultCollectThread[tag ^ 1].join();
-			fstackMutex.lock();
 			if (fStack->empty()){
-				fstackMutex.unlock();
 				break;
 			}
-			else fstackMutex.unlock();
 		}
-		else fstackMutex.unlock();
-		cout << "fStack size: " << fStack->size() << endl;
+		//cout << "fStack size: " << fStack->size() << endl;
 
 		sWorkSize = 0;
 		iWorkSize = 0;
 		//cout << "Start Preparing Data" << endl;
-		fstackMutex.lock();
 		while (min(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
-			fstackMutex.unlock();
 			if (SeqBitmap::memPos){ 
 				
 			}
 			else{
-				fstackMutex.lock();
 				currentNodePtr = fStack->top();
 				sListLen = currentNodePtr->sListLen;
 				iListLen = currentNodePtr->iListLen;
 				iListStart = currentNodePtr->iListStart;
 				if ((sWorkSize + sListLen) > MAX_WORK_SIZE || (iWorkSize + currentNodePtr->iListLen) > MAX_WORK_SIZE){
-					fstackMutex.unlock();
 					break;
 				}
 				fStack->pop();
-				fstackMutex.unlock();
 				for (int j = 0; j < sListLen; j++){
 					TreeNode* tempNode = new TreeNode;
 					tempNode->iBitmap = new SeqBitmap();
@@ -435,7 +429,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
 							if (currentNodePtr->sList->list == 0) cout << "holy mama" << endl;
-							currentNodePtr->iBitmap->gpuMemList[i];
 							sgList[tag][i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 						}
 					}
@@ -457,28 +450,26 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				}
 				currentStack[tag].push(currentNodePtr);
 			}
-			fstackMutex.lock();
 		}
-		fstackMutex.unlock();
+		prepare += (clock() - t1);
 		if (SeqBitmap::memPos){
 
 		}
 		else{
 			if (SCTRunning){
-				//cout << "Waiting For Support Counting from main thread" << endl;
-				fstackMutex.unlock();
 				SupportCountThread.join();
+				for (auto i : resultCollector){
+					fStack->push(i);
+				}
+				resultCollector.clear();
 				SCTRunning = false;
 			}
-			//cout << "start Support Counting From Main Thread" << endl;
 			SCTRunning = true;
-			SupportCountThread = thread(ThreadSupportCounting, sWorkSize, iWorkSize, sgList[tag], igList[tag], &(currentStack[tag]), sResult[tag], iResult[tag], sResultNodes[tag], iResultNodes[tag], fStack, index, minSup, tag);
-			//SupportCountThread.join();
+			SupportCountThread = thread(ThreadSupportCounting, sWorkSize, iWorkSize, sgList[tag], igList[tag], &(currentStack[tag]), sResult[tag], iResult[tag], sResultNodes[tag], iResultNodes[tag], index, minSup, tag);
 			//SCTRunning = false;
 		}
 		tag ^= 1;
 	}
-	fstackMutex.unlock();
 	if (SCTRunning){
 		SupportCountThread.join();
 	}
@@ -488,7 +479,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	//delete[] iResultNodes[1];
 	tmining_end = clock();
 	cout << "total time for mining end:" << tmining_end - tmining_start << endl;
-	cout << "total time for kernel execution: " << total << endl;
+	cout << "total time for Data preparing:" << prepare << endl;
+	cout << "total time for kernel execution: " << kernel << endl;
+	cout << "total time for post processing: " << post << endl;
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
@@ -590,9 +583,9 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 	return support;
 }
 
-void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPUList *igList, stack<TreeNode*>* currentStack, int * sResult, int * iResult, TreeNode **sResultNodes, TreeNode **iResultNodes, stack<TreeNode*>* fStack, int *index, int minSup, int tag){
+void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPUList *igList, stack<TreeNode*>* currentStack, int * sResult, int * iResult, TreeNode **sResultNodes, TreeNode **iResultNodes, int *index, int minSup, int tag){
 
-	//cout << "Start Support Counting" << endl;
+	clock_t t1 = clock();
 
 	int *sgresult, *igresult;
 	if (cudaMalloc(&sgresult, sizeof(int)*sWorkSize) != cudaSuccess){
@@ -629,6 +622,8 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 		}
 	}
 
+	kernel += clock() - t1;
+	t1 = clock();
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
 			sgList[i].clear();
@@ -669,19 +664,17 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 				if (currentNodePtr->iList->list == 0) cout << "Oh my god!!!" << endl;
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
 				tmp++;
-				fstackMutex.lock();
-				fStack->push(iResultNodes[iPivot]);
-				fstackMutex.unlock();
+				resultCollector.push_back(iResultNodes[iPivot]);
 				vector<int> temp = iResultNodes[iPivot]->seq;
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
-					}
-					else{
-						cout << ", ";
-					}
-				}
-				cout << iResult[iPivot] << " " << iPivot << endl;
+				//for (int i = 0; i < temp.size(); i++){
+				//	if (temp[i] != -1){
+				//		cout << temp[i] << " ";
+				//	}
+				//	else{
+				//		cout << ", ";
+				//	}
+				//}
+				//cout << iResult[iPivot] << " " << iPivot << endl;
 			}
 			else{
 				iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -707,19 +700,17 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 				if (currentNodePtr->sList->list == 0) cout << "Oh my god!!!" << endl;
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
 				tmp++;
-				fstackMutex.lock();
-				fStack->push(sResultNodes[sPivot]);
-				fstackMutex.unlock();
+				resultCollector.push_back(sResultNodes[sPivot]);
 				vector<int> temp = sResultNodes[sPivot]->seq;				
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
-					}
-					else{
-						cout << ", ";
-					}
-				}
-				cout << sResult[sPivot] << " " << sPivot << endl;
+				//for (int i = 0; i < temp.size(); i++){
+				//	if (temp[i] != -1){
+				//		cout << temp[i] << " ";
+				//	}
+				//	else{
+				//		cout << ", ";
+				//	}
+				//}
+				//cout << sResult[sPivot] << " " << sPivot << endl;
 			}
 			else{
 				sResultNodes[sPivot]->iBitmap->CudaFree();
@@ -751,7 +742,7 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 		system("pause");
 		exit(-1);
 	}
-	//cout << "End Support Counting" << endl;
+	post += clock() - t1;
 }
 
 
