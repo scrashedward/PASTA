@@ -29,6 +29,8 @@ public:
 	bool hasGPUMem;
 	static clock_t kernelTime;
 	static clock_t copyTime;
+	static clock_t instructionTime;
+	static clock_t waitingTime;
 
 	GPUList(int size){
 		length = 0;
@@ -67,58 +69,24 @@ public:
 
 	void clear(){
 		length = 0;
-		/*if (hasGPUMem){
-			if (cudaFree(gsrc1) != cudaSuccess){
-				cout << "cudaFree error in gsrc1" << endl;
-				system("pause");
-				exit(-1);
-			}
-			if (cudaFree(gsrc2) != cudaSuccess){
-				cout << "cudaFree error in gsrc2" << endl;
-				system("pause");
-				exit(-1);
-			}
-			if (cudaFree(gdst) != cudaSuccess){
-				cout << "cudaFree error in gdst" << endl;
-				system("pause");
-				exit(-1);
-			}
-			hasGPUMem = false;
-		}*/
 	}
 
 	void CudaMemcpy(bool kind, bool debug = false){
-		//cudaStream_t cudaStream;
-		//cudaStreamCreate(&cudaStream);
+		cudaStream_t cudaStream;
+		cudaStreamCreate(&cudaStream);
+		clock_t t1 = clock();
 		if (!kind){
-			//hasGPUMem = true;
-			//if (cudaMalloc(&gsrc1, sizeof(int*)* length) != cudaSuccess){
-			//	cout << "cudaMalloc error in gsrc1" << endl;
-			//	system("pause");
-			//	exit(-1);
-			//}
-			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
 				exit(-1);
 			}
-			
-			//if (cudaMalloc(&gsrc2, sizeof(int*)*length) != cudaSuccess){
-			//	cout << "cudaMalloc error in gsrc2" << endl;
-			//	system("pause");
-			//	exit(-1);
-			//}
-			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
-			//if (cudaMalloc(&gdst, sizeof(int*)*length) != cudaSuccess){
-			//	cout << "cudaMalloc error gdist" << endl;
-			//	system("pause");
-			//	exit(-1);
-			//}
-			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
 				system("pause");
 				exit(-1);
@@ -126,7 +94,7 @@ public:
 		}
 		else if (kind){
 			cudaError_t error;
-			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
+			error = cudaMemcpyAsync(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost, cudaStream);
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
@@ -134,6 +102,10 @@ public:
 				exit(-1);
 			}
 		}
+		instructionTime += clock() - t1;
+		t1 = clock();
+		cudaStreamSynchronize(cudaStream);
+		waitingTime += clock() - t1;
 	}
 
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
@@ -157,6 +129,8 @@ public:
 
 clock_t GPUList::kernelTime = 0;
 clock_t GPUList::copyTime = 0;
+clock_t GPUList::instructionTime = 0;
+clock_t GPUList::waitingTime = 0;
 
 #endif
 

@@ -605,12 +605,14 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	delete [] sResultNodes;
 	delete[] iResultNodes;
 	tmining_end = clock();
-	cout << "total time for mining end: " << tmining_end - tmining_start << endl;
-	cout << "total time for kernel execution: " << total << endl;
-	cout << "total time for inner kernel execution: " << GPUList::kernelTime << endl;
-	cout << "total time for inner copy operation: " << GPUList::copyTime << endl;
-	cout << "total time for data preparing:" << prepare << endl;
-	cout << "total time for result processing: " << post << endl;
+	cout << "total time for mining end:						" << tmining_end - tmining_start << endl;
+	cout << "total time for kernel execution:			" << total << endl;
+	cout << "total time for inner kernel execution:	" << GPUList::kernelTime << endl;
+	cout << "total time for inner copy operation:		" << GPUList::copyTime << endl;
+	cout << "total time for inner instruction:			" << GPUList::instructionTime << endl;
+	cout << "total time for inner waiting:					" << GPUList::waitingTime << endl;
+	cout << "total time for data preparing:				" << prepare << endl;
+	cout << "total time for result processing:			" << post << endl;
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
