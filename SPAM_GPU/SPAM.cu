@@ -360,8 +360,11 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	int sListLen;
 	int iListLen;
 	int iListStart;
-	int *sResult = new int[MAX_WORK_SIZE];
-	int * iResult = new int[MAX_WORK_SIZE];
+	//int *sResult = new int[MAX_WORK_SIZE];
+	//int * iResult = new int[MAX_WORK_SIZE];
+	int *sResult, *iResult;
+	cudaHostAlloc(&sResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+	cudaHostAlloc(&iResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 
 	TreeNode ** sResultNodes = new TreeNode*[MAX_WORK_SIZE];
 	TreeNode ** iResultNodes = new TreeNode*[MAX_WORK_SIZE];

@@ -34,9 +34,14 @@ public:
 
 	GPUList(int size){
 		length = 0;
-		src1 = new int*[size];
-		src2 = new int*[size];
-		dst = new int*[size];
+
+		cudaHostAlloc(&src1, sizeof(int*)* size, cudaHostAllocDefault);
+		cudaHostAlloc(&src2, sizeof(int*)* size, cudaHostAllocDefault);
+		cudaHostAlloc(&dst, sizeof(int*)* size, cudaHostAllocDefault);
+
+		//src1 = new int*[size];
+		//src2 = new int*[size];
+		//dst = new int*[size];
 		//hasGPUMem = false;
 		if (cudaMalloc(&gsrc1, sizeof(int*)* size) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc1" << endl;
