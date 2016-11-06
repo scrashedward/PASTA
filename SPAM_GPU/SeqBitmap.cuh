@@ -232,8 +232,8 @@ public:
 		m.lock();
 		count--;
 		if (count == 0){
-			//delete[] list;
-			//list = 0;
+			delete[] list;
+			list = 0;
 		}
 		m.unlock();
 		return count;

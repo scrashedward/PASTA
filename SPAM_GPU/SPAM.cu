@@ -415,11 +415,15 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			else{
 				fstackMutex.lock();
 				currentNodePtr = fStack->top();
-				fstackMutex.unlock();
 				sListLen = currentNodePtr->sListLen;
 				iListLen = currentNodePtr->iListLen;
 				iListStart = currentNodePtr->iListStart;
-				if ((sWorkSize + sListLen) > MAX_WORK_SIZE || (iWorkSize + currentNodePtr->iListLen) > MAX_WORK_SIZE) break;
+				if ((sWorkSize + sListLen) > MAX_WORK_SIZE || (iWorkSize + currentNodePtr->iListLen) > MAX_WORK_SIZE){
+					fstackMutex.unlock();
+					break;
+				}
+				fStack->pop();
+				fstackMutex.unlock();
 				for (int j = 0; j < sListLen; j++){
 					TreeNode* tempNode = new TreeNode;
 					tempNode->iBitmap = new SeqBitmap();
@@ -452,9 +456,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					}
 				}
 				currentStack[tag].push(currentNodePtr);
-				fstackMutex.lock();
-				fStack->pop();
-				fstackMutex.unlock();
 			}
 			fstackMutex.lock();
 		}
@@ -672,20 +673,20 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 				fStack->push(iResultNodes[iPivot]);
 				fstackMutex.unlock();
 				vector<int> temp = iResultNodes[iPivot]->seq;
-				//for (int i = 0; i < temp.size(); i++){
-				//	if (temp[i] != -1){
-				//		cout << temp[i] << " ";
-				//	}
-				//	else{
-				//		cout << ", ";
-				//	}
-				//}
-				//cout << iResult[iPivot] << " " << iPivot << endl;
+				for (int i = 0; i < temp.size(); i++){
+					if (temp[i] != -1){
+						cout << temp[i] << " ";
+					}
+					else{
+						cout << ", ";
+					}
+				}
+				cout << iResult[iPivot] << " " << iPivot << endl;
 			}
 			else{
 				iResultNodes[iPivot]->iBitmap->CudaFree();
-				//delete iResultNodes[iPivot]->iBitmap;
-				//delete iResultNodes[iPivot];
+				delete iResultNodes[iPivot]->iBitmap;
+				delete iResultNodes[iPivot];
 			}
 		}
 		tmp = 0;
@@ -710,32 +711,32 @@ void ThreadSupportCounting(int sWorkSize, int iWorkSize, GPUList * sgList, GPULi
 				fStack->push(sResultNodes[sPivot]);
 				fstackMutex.unlock();
 				vector<int> temp = sResultNodes[sPivot]->seq;				
-				//for (int i = 0; i < temp.size(); i++){
-				//	if (temp[i] != -1){
-				//		cout << temp[i] << " ";
-				//	}
-				//	else{
-				//		cout << ", ";
-				//	}
-				//}
-				//cout << sResult[sPivot] << " " << sPivot << endl;
+				for (int i = 0; i < temp.size(); i++){
+					if (temp[i] != -1){
+						cout << temp[i] << " ";
+					}
+					else{
+						cout << ", ";
+					}
+				}
+				cout << sResult[sPivot] << " " << sPivot << endl;
 			}
 			else{
 				sResultNodes[sPivot]->iBitmap->CudaFree();
-				//delete sResultNodes[sPivot]->iBitmap;
-				//delete sResultNodes[sPivot];
+				delete sResultNodes[sPivot]->iBitmap;
+				delete sResultNodes[sPivot];
 			}
 		}
 		if (currentNodePtr->seq.size() != 1){
 			currentNodePtr->iBitmap->CudaFree();
 			if (currentNodePtr->sList->free() == 0){
-				//delete currentNodePtr->sList;
+				delete currentNodePtr->sList;
 			}
 			if (currentNodePtr->iList->free() == 0){
-				//delete currentNodePtr->iList;
+				delete currentNodePtr->iList;
 			}
-			//delete currentNodePtr->iBitmap;
-			//delete currentNodePtr;
+			delete currentNodePtr->iBitmap;
+			delete currentNodePtr;
 		}
 		currentStack->pop();
 	}
