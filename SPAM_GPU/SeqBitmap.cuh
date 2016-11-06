@@ -3,6 +3,7 @@
 #include <iostream>
 #include <math.h>
 #include <stack>
+#include <mutex>
 
 using namespace std;
 
@@ -30,6 +31,7 @@ public:
 	static bool memPos; // memory on GPU is grouped(1) or distributed(0)
 	static int sizeSum;
 	static stack<int*> gpuMemPool;
+	static mutex memPoolMutex;
 
 	int *gpuMemList[5];
 	int *gpuMem;
@@ -107,7 +109,9 @@ public:
 			}
 		}
 		else{
+			memPoolMutex.lock();
 			gpuMemPool.push(gpuMemList[0]);
+			memPoolMutex.unlock();
 			//if (cudaFree(gpuMemList[0]) != cudaSuccess){
 			//	cout << "cudaFree error in gpuMemList" << endl;
 			//	system("pause");
@@ -165,11 +169,14 @@ public:
 			}
 		}
 		else{
+			memPoolMutex.lock();
 			if (!gpuMemPool.empty()){
 				gpuMemList[0] = gpuMemPool.top();
 				gpuMemPool.pop();
+				memPoolMutex.unlock();
 			}
 			else{
+				memPoolMutex.unlock();
 				cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sizeSum);
 				if (error != cudaSuccess){
 					cout << error << endl;
@@ -193,6 +200,7 @@ int SeqBitmap::size[5] = { 0 };
 int SeqBitmap::sizeGPU[5] = { 0 };
 bool SeqBitmap::memPos = false;
 stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
+mutex SeqBitmap::memPoolMutex;
 
 #endif
 
@@ -205,6 +213,7 @@ public:
 	int count;
 	int index;
 	int* list;
+	mutex m;
 
 	SList(int l){
 		list = new int[l];
@@ -213,15 +222,20 @@ public:
 	}
 
 	SList* get(){
+		m.lock();
 		count++;
+		m.unlock();
 		return this;
 	}
 
 	int free(){
+		m.lock();
 		count--;
 		if (count == 0){
-			delete[] list;
+			//delete[] list;
+			//list = 0;
 		}
+		m.unlock();
 		return count;
 	}
 
