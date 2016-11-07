@@ -30,7 +30,10 @@ public:
 	static clock_t kernelTime;
 	static clock_t copyTime;
 	static clock_t instructionTime;
+	static clock_t H2DTime;
+	static clock_t D2HTime;
 	static clock_t waitingTime;
+	static long DataCopied;
 
 	GPUList(int size){
 		length = 0;
@@ -79,38 +82,43 @@ public:
 	void CudaMemcpy(bool kind, bool debug = false){
 		cudaStream_t cudaStream;
 		cudaStreamCreate(&cudaStream);
-		clock_t t1 = clock();
 		if (!kind){
-			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			clock_t t1 = clock();
+			DataCopied += (sizeof(int*)*length * 3);
+			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
 				system("pause");
 				exit(-1);
 			}
+			H2DTime += (clock() - t1);
 		}
-		else if (kind){
+		else{
+			clock_t t1 = clock();
 			cudaError_t error;
-			error = cudaMemcpyAsync(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost, cudaStream);
+			DataCopied += (sizeof(int*)*length);
+			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
 				system("pause");
 				exit(-1);
 			}
+			D2HTime += (clock() - t1);
 		}
-		instructionTime += clock() - t1;
-		t1 = clock();
-		cudaStreamSynchronize(cudaStream);
-		waitingTime += clock() - t1;
+		//instructionTime += (clock() - t1);
+		//t1 = clock();
+		//cudaStreamSynchronize(cudaStream);
+		//waitingTime += clock() - t1;
 	}
 
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
@@ -125,6 +133,7 @@ public:
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
+		cudaDeviceSynchronize();
 		kernelTime += (clock() - t1);
 		t1 = clock();
 		CudaMemcpy(true);
@@ -136,6 +145,9 @@ clock_t GPUList::kernelTime = 0;
 clock_t GPUList::copyTime = 0;
 clock_t GPUList::instructionTime = 0;
 clock_t GPUList::waitingTime = 0;
+clock_t GPUList::H2DTime = 0;
+clock_t GPUList::D2HTime = 0;
+long GPUList::DataCopied = 0;
 
 #endif
 
