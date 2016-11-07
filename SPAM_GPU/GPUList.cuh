@@ -79,23 +79,21 @@ public:
 		length = 0;
 	}
 
-	void CudaMemcpy(bool kind, bool debug = false){
-		cudaStream_t cudaStream;
-		cudaStreamCreate(&cudaStream);
+	void CudaMemcpy(bool kind, cudaStream_t cudaStream){
 		if (!kind){
 			clock_t t1 = clock();
 			DataCopied += (sizeof(int*)*length * 3);
-			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
+			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
 				system("pause");
 				exit(-1);
@@ -106,7 +104,7 @@ public:
 			clock_t t1 = clock();
 			cudaError_t error;
 			DataCopied += (sizeof(int*)*length);
-			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
+			error = cudaMemcpyAsync(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost, cudaStream);
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
@@ -121,23 +119,16 @@ public:
 		//waitingTime += clock() - t1;
 	}
 
-	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, bool debug = false){
+	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, cudaStream_t kernelStream){
+		CudaMemcpy(false, kernelStream);
 		clock_t t1 = clock();
-		CudaMemcpy(false, debug);
-		copyTime += clock() - t1;
-		t1 = clock();
 		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
-			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
-			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum, kernelStream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
-		cudaDeviceSynchronize();
 		kernelTime += (clock() - t1);
-		t1 = clock();
-		CudaMemcpy(true);
-		copyTime += clock() - t1;
+		//CudaMemcpy(true);
 	}
 };
 

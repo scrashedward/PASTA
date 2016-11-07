@@ -355,63 +355,106 @@ int getBitmapType(int size){
 void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
 	tmining_start = clock();
-	stack<TreeNode*> currentStack;
+	cudaStream_t kernelStream, copyStream;
+	cudaStreamCreate(&kernelStream);
+	cudaStreamCreate(&copyStream);
+	stack<TreeNode*> currentStack[2];
 	TreeNode* currentNodePtr;
-	int sWorkSize = 0;
-	int iWorkSize = 0;
+	int sWorkSize[2] = { 0 };
+	int iWorkSize[2] = { 0 };
 	int sListLen;
 	int iListLen;
 	int iListStart;
+	short tag = 0;
+	bool running = false, hasResult = false;
 	//int *sResult = new int[MAX_WORK_SIZE];
 	//int * iResult = new int[MAX_WORK_SIZE];
-	int *sResult, *iResult;
-	cudaHostAlloc(&sResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
-	cudaHostAlloc(&iResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+	int *sResult[2], *iResult[2];
+	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+	cudaHostAlloc(&sResult[1], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+	cudaHostAlloc(&iResult[1], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 
-	TreeNode ** sResultNodes = new TreeNode*[MAX_WORK_SIZE];
-	TreeNode ** iResultNodes = new TreeNode*[MAX_WORK_SIZE];
-	GPUList sgList[5] = { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) };
-	GPUList igList[5] = { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) };
+	TreeNode ** sResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
+	TreeNode ** iResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
+	GPUList sgList[2][5] = { { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) }, { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) } };
+	GPUList igList[2][5] = { { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) }, { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) } };
 
-	int *sgresult, *igresult;
-	if (cudaMalloc(&sgresult, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+	int *sgresult[2], *igresult[2];
+	if (cudaMalloc(&sgresult[0],sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in sgresult" << endl;
 		system("pause");
 		exit(-1);
 	}
-	if (cudaMalloc(&igresult, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+	if (cudaMalloc(&igresult[0], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		cout << "cudaMalloc error in igresult" << endl;
+		system("pause");
+		exit(-1);
+	}
+	if (cudaMalloc(&sgresult[1], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		cout << "cudaMalloc error in sgresult" << endl;
+		system("pause");
+		exit(-1);
+	}
+	if (cudaMalloc(&igresult[1], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in igresult" << endl;
 		system("pause");
 		exit(-1);
 	}
 
 	for (int i = 0; i < 5; i++){
-		sgList[i].result = sResult;
-		igList[i].result = iResult;
-		sgList[i].gresult = sgresult;
-		igList[i].gresult = igresult;
+		sgList[0][i].result = sResult[0];
+		igList[0][i].result = iResult[0];
+		sgList[0][i].gresult = sgresult[1];
+		igList[0][i].gresult = igresult[1];
+		sgList[1][i].result = sResult[1];
+		igList[1][i].result = iResult[1];
+		sgList[1][i].gresult = sgresult[1];
+		igList[1][i].gresult = igresult[1];
 	}
-	while (!(fStack->empty())){
+	while (1){
+		if (fStack->empty()){
+			if (running){
+				cudaStreamSynchronize(kernelStream);
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] > 0){
+						if (sWorkSize > 0){
+							sgList[tag^1][i].CudaMemcpy(true, copyStream);
+						}
+						if (iWorkSize > 0){
+							igList[tag^1][i].CudaMemcpy(true, copyStream);
+						}
+					}
+				}
+				running = false;
+				cudaStreamSynchronize(copyStream);
+				ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+				hasResult = false;
+			}
+			if (fStack->empty()){
+				break;
+			}
+		}
 		t1 = clock();
 		//cout << "fStack size: " << fStack->size() << endl;
-		sWorkSize = 0;
-		iWorkSize = 0;
+		sWorkSize[tag] = 0;
+		iWorkSize[tag] = 0;
 
-		if (cudaMemset(sgresult, 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		if (cudaMemset(sgresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 			cout << "cudaMemset error in sgresult" << endl;
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 			system("pause");
 			exit(-1);
 		}
-		if (cudaMemset(igresult, 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		if (cudaMemset(igresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 			cout << "cudaMemset error in igresult" << endl;
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 			system("pause");
 			exit(-1);
 		}
-		while (min(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
+		while (min(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
 			if (SeqBitmap::memPos){ 
 				
 			}
@@ -420,18 +463,18 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				sListLen = currentNodePtr->sListLen;
 				iListLen = currentNodePtr->iListLen;
 				iListStart = currentNodePtr->iListStart;
-				if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
+				if (sWorkSize[tag] + sListLen > MAX_WORK_SIZE || iWorkSize[tag] + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
 				for (int j = 0; j < sListLen; j++){
 					TreeNode* tempNode = new TreeNode;
 					tempNode->iBitmap = new SeqBitmap();
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
-					sResultNodes[sWorkSize] = tempNode;
+					sResultNodes[tag][sWorkSize[tag]] = tempNode;
 
-					sWorkSize++;
+					sWorkSize[tag]++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
-							sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+							sgList[tag][i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 						}
 					}
 				}
@@ -441,15 +484,15 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
 					//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
-					iResultNodes[iWorkSize] = tempNode;
-					iWorkSize++;
+					iResultNodes[tag][iWorkSize[tag]] = tempNode;
+					iWorkSize[tag]++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
-							igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+							igList[tag][i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 						}
 					}
 				}
-				currentStack.push(currentNodePtr);
+				currentStack[tag].push(currentNodePtr);
 				fStack->pop();
 			}
 		}
@@ -462,23 +505,44 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			
 			t1 = clock();
 
+			if (running){
+				cudaStreamSynchronize(kernelStream);
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] > 0){
+						if (sWorkSize > 0){
+							sgList[tag^1][i].CudaMemcpy(true, copyStream);
+						}
+						if (iWorkSize > 0){
+							igList[tag^1][i].CudaMemcpy(true,  copyStream);
+						}
+					}
+				}
+				hasResult = true;
+			}
+
+
+			running = true;
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
 					if (sWorkSize > 0){
-						sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
+						sgList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true, kernelStream);
 					}
 					if (iWorkSize > 0){
-						igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
+						igList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, kernelStream);
 					}
 				}
 			}
-
-			total += clock() - t1;
-			ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, index);
+			if (hasResult){
+				cudaStreamSynchronize(copyStream);
+				ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+			}
 		}
+		tag ^= 1;
 	}
-	delete [] sResultNodes;
-	delete[] iResultNodes;
+	delete [] sResultNodes[0];
+	delete[] iResultNodes[0];
+	delete[] sResultNodes[1];
+	delete[] iResultNodes[1];
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
 	cout << "total time for kernel execution:" << total << endl;
@@ -703,7 +767,6 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 
 	return support;
 }
-
 
 __global__ void tempDebug(int* input, int length, int bitmapType){
 
