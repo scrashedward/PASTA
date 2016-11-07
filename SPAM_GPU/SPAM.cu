@@ -405,8 +405,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	for (int i = 0; i < 5; i++){
 		sgList[0][i].result = sResult[0];
 		igList[0][i].result = iResult[0];
-		sgList[0][i].gresult = sgresult[1];
-		igList[0][i].gresult = igresult[1];
+		sgList[0][i].gresult = sgresult[0];
+		igList[0][i].gresult = igresult[0];
 		sgList[1][i].result = sResult[1];
 		igList[1][i].result = iResult[1];
 		sgList[1][i].gresult = sgresult[1];
@@ -501,9 +501,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 		}
 		else{
-			//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
-			
-			t1 = clock();
 
 			if (running){
 				cudaStreamSynchronize(kernelStream);
@@ -600,16 +597,16 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				vector<int> temp = iResultNodes[iPivot]->seq;
-				//for (int i = 0; i < temp.size(); i++){
-				//	if (temp[i] != -1){
-				//		cout << temp[i] << " ";
-				//	}
-				//	else{
-				//		cout << ", ";
-				//	}
-				//}
-				//cout << iResult[iPivot];
-				//cout << endl;
+				for (int i = 0; i < temp.size(); i++){
+					if (temp[i] != -1){
+						cout << temp[i] << " ";
+					}
+					else{
+						cout << ", ";
+					}
+				}
+				cout << iResult[iPivot];
+				cout << endl;
 			}
 			else{
 				iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -636,16 +633,16 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				vector<int> temp = sResultNodes[sPivot]->seq;
-				//for (int i = 0; i < temp.size(); i++){
-				//	if (temp[i] != -1){
-				//		cout << temp[i] << " ";
-				//	}
-				//	else{
-				//		cout << ", ";
-				//	}
-				//}
-				//cout << sResult[sPivot];
-				//cout << endl;
+				for (int i = 0; i < temp.size(); i++){
+					if (temp[i] != -1){
+						cout << temp[i] << " ";
+					}
+					else{
+						cout << ", ";
+					}
+				}
+				cout << sResult[sPivot];
+				cout << endl;
 			}
 			else{
 				sResultNodes[sPivot]->iBitmap->CudaFree();
