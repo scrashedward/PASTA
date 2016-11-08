@@ -57,7 +57,7 @@ public:
 		size[4] = length[4] * 2;
 		for (int i = 0; i < 5; i++){
 			sizeGPU[i] = (size[i] % 4 == 0) ? size[i] : ((size[i] + 4) - size[i] % 4);
-			cout << size[i] << endl;
+			//cout << size[i] << endl;
 		}
 		for (auto i : size){
 			sizeSum += i;

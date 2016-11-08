@@ -39,6 +39,7 @@ int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
+int totalFreq;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -48,7 +49,7 @@ int main(int argc, char** argv){
 	// the minimun support in percentage
 	float minSupPer = atof(argv[2]);
 
-
+	totalFreq = 0;
 	MAX_BLOCK_NUM = 512;
 	WORK_SIZE = MAX_BLOCK_NUM * 8;
 	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
@@ -263,9 +264,9 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	cout << "Max number of transactions for a custumer is:" << maxCustTran << endl;
 	cout << "total number of transactions is: " << avgCustTran << endl;
 	cout << "Average number of transactions for a custumer is:" << avgCustTran / (custCount - 1) << endl;
-	for (int i = 0; i < 6; i++){
-		cout << "sizeOfBitmaps[" << i << "]: " << sizeOfBitmaps[i] << endl;
-	}
+	//for (int i = 0; i < 6; i++){
+	//	cout << "sizeOfBitmaps[" << i << "]: " << sizeOfBitmaps[i] << endl;
+	//}
 
 	f1 = new TreeNode*[f1Size];
 	for (int i = 0; i < f1Size; i++){
@@ -552,6 +553,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
 	cout << "total Data Copied: " << GPUList::DataCopied << endl;
+	cout << "total Frequent Itemset Number: " << totalFreq <<endl;
 }
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
@@ -597,16 +599,17 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				vector<int> temp = iResultNodes[iPivot]->seq;
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
-					}
-					else{
-						cout << ", ";
-					}
-				}
-				cout << iResult[iPivot];
-				cout << endl;
+				totalFreq++;
+				//for (int i = 0; i < temp.size(); i++){
+				//	if (temp[i] != -1){
+				//		cout << temp[i] << " ";
+				//	}
+				//	else{
+				//		cout << ", ";
+				//	}
+				//}
+				//cout << iResult[iPivot];
+				//cout << endl;
 			}
 			else{
 				iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -633,16 +636,17 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				vector<int> temp = sResultNodes[sPivot]->seq;
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
-					}
-					else{
-						cout << ", ";
-					}
-				}
-				cout << sResult[sPivot];
-				cout << endl;
+				totalFreq++;
+				//for (int i = 0; i < temp.size(); i++){
+				//	if (temp[i] != -1){
+				//		cout << temp[i] << " ";
+				//	}
+				//	else{
+				//		cout << ", ";
+				//	}
+				//}
+				//cout << sResult[sPivot];
+				//cout << endl;
 			}
 			else{
 				sResultNodes[sPivot]->iBitmap->CudaFree();
