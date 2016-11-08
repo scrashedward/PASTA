@@ -34,6 +34,7 @@ void FindSeqPattern(stack<TreeNode*>*, int, int*);
 void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index);
+void PrintMemInfo();
 
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
@@ -357,6 +358,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
 	tmining_start = clock();
 	cudaStream_t kernelStream, copyStream;
+	cudaError_t cudaError;
 	cudaStreamCreate(&kernelStream);
 	cudaStreamCreate(&copyStream);
 	stack<TreeNode*> currentStack[2];
@@ -368,8 +370,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	int iListStart;
 	short tag = 0;
 	bool running = false, hasResult = false;
-	//int *sResult = new int[MAX_WORK_SIZE];
-	//int * iResult = new int[MAX_WORK_SIZE];
+	size_t totalMem, freeMem;
 	int *sResult[2], *iResult[2];
 	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
@@ -413,7 +414,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		sgList[1][i].gresult = sgresult[1];
 		igList[1][i].gresult = igresult[1];
 	}
+	
+	PrintMemInfo();
 	while (1){
+		PrintMemInfo();
 		if (fStack->empty()){
 			if (running){
 				cudaStreamSynchronize(kernelStream);
@@ -443,15 +447,15 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 		if (cudaMemset(sgresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 			cout << "cudaMemset error in sgresult" << endl;
-			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			cudaError = cudaGetLastError();
+			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
 			system("pause");
 			exit(-1);
 		}
 		if (cudaMemset(igresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 			cout << "cudaMemset error in igresult" << endl;
-			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			 cudaError = cudaGetLastError();
+			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
 			system("pause");
 			exit(-1);
 		}
@@ -785,4 +789,16 @@ __global__ void tempDebug(int* input, int length, int bitmapType){
 		}
 	}
 	printf("%d\n", sup);
+}
+
+void PrintMemInfo(){
+	size_t freeMem, totalMem;
+	cudaError_t err;
+	err = cudaMemGetInfo(&freeMem, &totalMem);
+	if (err != cudaSuccess){
+		printf("Error: %s\n", cudaGetErrorString(err));
+		system("pause");
+		exit(-1);
+	}
+	cout << "Mem usage: " << "Free: " << freeMem << "total: " << totalMem << endl;
 }
