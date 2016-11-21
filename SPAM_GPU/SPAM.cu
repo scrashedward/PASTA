@@ -43,6 +43,7 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
+bool OUTPUT = false;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -59,17 +60,25 @@ int main(int argc, char** argv){
 	MAX_THREAD_NUM = 1024;
 
 	for (int i = 3; i < argc; i+=2){
-		if (argv[i] == "-b"){
+		if (strcmp(argv[i], "-b") == 0){
 			MAX_BLOCK_NUM = atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-w"){
+		else if (strcmp(argv[i], "-w") == 0){
 			WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-m"){
+		else if (strcmp(argv[i], "-m") == 0){
 			MAX_WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-t"){
+		else if (strcmp(argv[i], "-t") == 0){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
+		}
+		else if (strcmp(argv[i], "-n") == 0){
+			NAIVE = strcmp(argv[i+1], "false");
+			cout << "using naive metnod" << endl;
+		}
+		else if (strcmp(argv[i], "-o") == 0){
+			OUTPUT = strcmp(argv[i+1], "false");
+			cout << "output seq pattern\n";
 		}
 	}
 	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
@@ -399,7 +408,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	while (!(fStack->empty())){
 		//PrintMemInfo();
 		t1 = clock();
-		cout << "fStack size: " << fStack->size() << endl;
+		if(OUTPUT)cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
 
@@ -542,18 +551,20 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
-				vector<int> temp = iResultNodes[iPivot]->seq;
 				totalFreq++;
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
+				vector<int> temp = iResultNodes[iPivot]->seq;
+				if(OUTPUT){
+					for (int i = 0; i < temp.size(); i++){
+						if (temp[i] != -1){
+							cout << temp[i] << " ";
+						}
+						else{
+							cout << ", ";
+						}
 					}
-					else{
-						cout << ", ";
-					}
+					cout << iResult[iPivot];
+					cout << endl;
 				}
-				cout << iResult[iPivot];
-				cout << endl;
 			}
 			else{
 				iResultNodes[iPivot]->iBitmap->CudaFree();
@@ -579,18 +590,20 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
-				vector<int> temp = sResultNodes[sPivot]->seq;
 				totalFreq++;
-				for (int i = 0; i < temp.size(); i++){
-					if (temp[i] != -1){
-						cout << temp[i] << " ";
+				if(OUTPUT){
+					vector<int> temp = sResultNodes[sPivot]->seq;
+					for (int i = 0; i < temp.size(); i++){
+						if (temp[i] != -1){
+							cout << temp[i] << " ";
+						}
+						else{
+							cout << ", ";
+						}
 					}
-					else{
-						cout << ", ";
-					}
+					cout << sResult[sPivot];
+					cout << endl;
 				}
-				cout << sResult[sPivot];
-				cout << endl;
 			}
 			else{
 				sResultNodes[sPivot]->iBitmap->CudaFree();
@@ -654,7 +667,7 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 	while (!(fStack->empty())){
 		//PrintMemInfo();
 		t1 = clock();
-		cout << "fStack size: " << fStack->size() << endl;
+		if(OUTPUT)cout << "fStack size: " << fStack->size() << endl;
 		workSize = 0;
 
 		if (cudaMemset(gresult, 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
@@ -766,17 +779,19 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 						tmp++;
 						fStack->push(resultNodes[pivot]);
 						totalFreq++;
-						vector<int> temp = resultNodes[pivot]->seq;
-						for (int i = 0; i < temp.size(); i++){
-							if (temp[i] != -1){
-								cout << temp[i] << " ";
+						if(OUTPUT){
+							vector<int> temp = resultNodes[pivot]->seq;
+							for (int i = 0; i < temp.size(); i++){
+								if (temp[i] != -1){
+									cout << temp[i] << " ";
+								}
+								else{
+									cout << ", ";
+								}
 							}
-							else{
-								cout << ", ";
-							}
+							cout << result[pivot];
+							cout << endl;
 						}
-						cout << result[pivot];
-						cout << endl;
 					}
 					else{
 						resultNodes[pivot]->iBitmap->CudaFree();
@@ -803,17 +818,19 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 						tmp++;
 						fStack->push(resultNodes[pivot]);
 						totalFreq++;
-						vector<int> temp = resultNodes[pivot]->seq;
-						for (int i = 0; i < temp.size(); i++){
-							if (temp[i] != -1){
-								cout << temp[i] << " ";
+						if(OUTPUT){
+							vector<int> temp = resultNodes[pivot]->seq;
+							for (int i = 0; i < temp.size(); i++){
+								if (temp[i] != -1){
+									cout << temp[i] << " ";
+								}
+								else{
+									cout << ", ";
+								}
 							}
-							else{
-								cout << ", ";
-							}
+							cout << result[pivot];
+							cout << endl;
 						}
-						cout << result[pivot];
-						cout << endl;
 					}
 					else{
 						resultNodes[pivot]->iBitmap->CudaFree();
