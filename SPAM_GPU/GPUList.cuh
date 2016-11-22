@@ -83,8 +83,6 @@ public:
 	}
 
 	void CudaMemcpy(bool kind, bool naive = false){
-		cudaStream_t cudaStream;
-		cudaStreamCreate(&cudaStream);
 		if (!kind){
 			clock_t t1 = clock();
 			DataCopied += (sizeof(int*)*length * 3);
