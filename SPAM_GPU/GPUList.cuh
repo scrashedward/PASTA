@@ -192,7 +192,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	gsrc1 = (unsigned*) src1[currentBlock];
 	gsrc2 = (unsigned*) src2[currentBlock];
 	gdst =  (unsigned*) dst[currentBlock];
-	int s1, s2, d;
+	int s1, s2, d, threadPos;
 
 	__syncthreads();
 	int tmp;
@@ -204,7 +204,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	}
 
 	for (int i = 0; i < tmp; i += blockSize){
-		int threadPos = i + tid;
+		threadPos = i + tid;
 		if ((threadPos >= len&& bitmapType != 4) || (bitmapType ==4 && threadPos >= len/2)){
 			break;
 		}
