@@ -81,19 +81,19 @@ int main(int argc, char** argv){
 			cout << "output seq pattern\n";
 		}
 	}
-	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
-	cout << "WORK_SIZE:" << WORK_SIZE << endl;
-	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
-	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
+	//cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
+	//cout << "WORK_SIZE:" << WORK_SIZE << endl;
+	//cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
+	//cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
 
-	int DeviceCount;
-	cudaGetDeviceCount(&DeviceCount);
-	cout << "Detect " << DeviceCount << " cuda devices" << endl;
-	for (int i = 0; i < DeviceCount; i++){
-		cudaDeviceProp deviceProp;
-		cudaGetDeviceProperties(&deviceProp, i);
-		cout << "device " << i << " name: " << deviceProp.name << endl;
-	}
+	//int DeviceCount;
+	//cudaGetDeviceCount(&DeviceCount);
+	//cout << "Detect " << DeviceCount << " cuda devices" << endl;
+	//for (int i = 0; i < DeviceCount; i++){
+	//	cudaDeviceProp deviceProp;
+	//	cudaGetDeviceProperties(&deviceProp, i);
+	//	cout << "device " << i << " name: " << deviceProp.name << endl;
+	//}
 
 	cudaSetDevice(0);
 
@@ -244,9 +244,9 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete tidArr;
 	delete iidArr;
 
-	cout << "custCount" << custCount << endl;
-	cout << "itemCount" << itemCount << endl;
-	cout << "minSup: " << float(custCount) * minSupPer << endl;
+	//cout << "custCount" << custCount << endl;
+	//cout << "itemCount" << itemCount << endl;
+	//cout << "minSup: " << float(custCount) * minSupPer << endl;
 	int minSup = custCount * minSupPer;
 	int f1Size = 0;
 	map<int, int> f1map;
@@ -258,7 +258,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 			f1Size++;
 		}
 	}
-	cout << "f1Size: " << f1Size << endl;
+	//cout << "f1Size: " << f1Size << endl;
 	(*indexArray).ToArray(index, f1Size);
 	delete indexArray;
 	int maxCustTran = 0;
@@ -274,9 +274,9 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		exit(-1);
 	}
 	SeqBitmap::SetLength(sizeOfBitmaps[0], sizeOfBitmaps[1], sizeOfBitmaps[2], sizeOfBitmaps[3], sizeOfBitmaps[4]);
-	cout << "Max number of transactions for a custumer is:" << maxCustTran << endl;
-	cout << "total number of transactions is: " << avgCustTran << endl;
-	cout << "Average number of transactions for a custumer is:" << avgCustTran / (custCount - 1) << endl;
+	//cout << "Max number of transactions for a custumer is:" << maxCustTran << endl;
+	//cout << "total number of transactions is: " << avgCustTran << endl;
+	//cout << "Average number of transactions for a custumer is:" << avgCustTran / (custCount - 1) << endl;
 	//for (int i = 0; i < 6; i++){
 	//	cout << "sizeOfBitmaps[" << i << "]: " << sizeOfBitmaps[i] << endl;
 	//}
@@ -299,7 +299,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	int tidIdx = 0;
 	int bitmapType;
 	int current;
-	cout << "OverallCount" << overallCount << endl;
+	//cout << "OverallCount" << overallCount << endl;
 	for (int i = 0; i < overallCount; i++){
 		if (cids[i] != lastCid){
 			lastCid = cids[i];
