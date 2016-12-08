@@ -1,6 +1,7 @@
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "cuda_runtime_api.h"
+#include "device_launch_parameters.h"
 #include <iostream>
 #include <time.h>
 
@@ -32,11 +33,8 @@ public:
 	bool hasGPUMem;
 	static clock_t kernelTime;
 	static clock_t copyTime;
-	static clock_t instructionTime;
 	static clock_t H2DTime;
 	static clock_t D2HTime;
-	static clock_t waitingTime;
-	static long DataCopied;
 
 	GPUList(int size){
 		length = 0;
@@ -85,7 +83,6 @@ public:
 	void CudaMemcpy(bool kind, bool naive = false){
 		if (!kind){
 			clock_t t1 = clock();
-			DataCopied += (sizeof(int*)*length * 3);
 			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
@@ -108,12 +105,12 @@ public:
 					exit(-1);
 				}
 			}
+			cudaDeviceSynchronize();
 			H2DTime += (clock() - t1);
 		}
 		else{
 			clock_t t1 = clock();
 			cudaError_t error;
-			DataCopied += (sizeof(int*)*length);
 			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
 			if (error != cudaSuccess){
 				cout << error << endl;
@@ -121,6 +118,7 @@ public:
 				system("pause");
 				exit(-1);
 			}
+			cudaDeviceSynchronize();
 			D2HTime += (clock() - t1);
 		}
 		//instructionTime += (clock() - t1);
@@ -141,7 +139,7 @@ public:
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
-		//cudaDeviceSynchronize();
+		cudaDeviceSynchronize();
 		kernelTime += (clock() - t1);
 		t1 = clock();
 		CudaMemcpy(true);
@@ -168,11 +166,8 @@ public:
 
 clock_t GPUList::kernelTime = 0;
 clock_t GPUList::copyTime = 0;
-clock_t GPUList::instructionTime = 0;
-clock_t GPUList::waitingTime = 0;
 clock_t GPUList::H2DTime = 0;
 clock_t GPUList::D2HTime = 0;
-long GPUList::DataCopied = 0;
 
 #endif
 

@@ -130,8 +130,8 @@ int main(int argc, char** argv){
 	delete fStack;
 	delete [] index;
 	delete [] f1;
-	system("pause");
-
+	//system("pause");
+	fgetc(stdin);
 }
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
@@ -489,7 +489,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			}
 
 			total += clock() - t1;
+			t1 = clock();
 			ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, index);
+			post += clock() - t1;
 		}
 	}
 	delete [] sResultNodes;
@@ -499,13 +501,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for kernel execution:" << total << endl;
 	cout << "total time for inner kernel execution:" << GPUList::kernelTime << endl;
 	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
-	cout << "total time for inner instruction:" << GPUList::instructionTime << endl;
-	cout << "total time for inner waiting:" << GPUList::waitingTime << endl;
 	cout << "total time for data preparing:" << prepare << endl;
 	cout << "total time for result processing:" << post << endl;
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
-	cout << "total Data Copied: " << GPUList::DataCopied << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
 }
 
@@ -741,12 +740,12 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 			}
 
 			total += clock() - t1;
+			t1 = clock();
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
 					gList[i].clear();
 				}
 			}
-			//t1 = clock();
 			int pivot = workSize;
 			while (!currentStack.empty()){
 				int sListSize = 0;
@@ -851,6 +850,7 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 				}
 				currentStack.pop();
 			}
+			post += clock() - t1;
 		}
 	}
 	delete[] resultNodes;
@@ -859,13 +859,10 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for kernel execution:" << total << endl;
 	cout << "total time for inner kernel execution:" << GPUList::kernelTime << endl;
 	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
-	cout << "total time for inner instruction:" << GPUList::instructionTime << endl;
-	cout << "total time for inner waiting:" << GPUList::waitingTime << endl;
 	cout << "total time for data preparing:" << prepare << endl;
 	cout << "total time for result processing:" << post << endl;
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
-	cout << "total Data Copied: " << GPUList::DataCopied << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
 }
 
