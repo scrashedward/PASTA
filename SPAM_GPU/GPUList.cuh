@@ -29,11 +29,8 @@ public:
 	bool hasGPUMem;
 	static clock_t kernelTime;
 	static clock_t copyTime;
-	static clock_t instructionTime;
 	static clock_t H2DTime;
 	static clock_t D2HTime;
-	static clock_t waitingTime;
-	static long DataCopied;
 
 	GPUList(int size){
 		length = 0;
@@ -82,7 +79,6 @@ public:
 	void CudaMemcpy(bool kind, cudaStream_t cudaStream){
 		if (!kind){
 			clock_t t1 = clock();
-			DataCopied += (sizeof(int*)*length * 3);
 			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
@@ -103,7 +99,6 @@ public:
 		else{
 			clock_t t1 = clock();
 			cudaError_t error;
-			DataCopied += (sizeof(int*)*length);
 			error = cudaMemcpyAsync(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost, cudaStream);
 			if (error != cudaSuccess){
 				cout << error << endl;
@@ -134,11 +129,8 @@ public:
 
 clock_t GPUList::kernelTime = 0;
 clock_t GPUList::copyTime = 0;
-clock_t GPUList::instructionTime = 0;
-clock_t GPUList::waitingTime = 0;
 clock_t GPUList::H2DTime = 0;
 clock_t GPUList::D2HTime = 0;
-long GPUList::DataCopied = 0;
 
 #endif
 

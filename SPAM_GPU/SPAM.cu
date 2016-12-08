@@ -57,31 +57,18 @@ int main(int argc, char** argv){
 	MAX_THREAD_NUM = 1024;
 
 	for (int i = 3; i < argc; i+=2){
-		if (argv[i] == "-b"){
+		if (strcmp(argv[i], "-b") == 0){
 			MAX_BLOCK_NUM = atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-w"){
+		else if (strcmp(argv[i], "-w") == 0){
 			WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-m"){
+		else if (strcmp(argv[i], "-m") == 0){
 			MAX_WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (argv[i] == "-t"){
+		else if (strcmp(argv[i], "-t") == 0){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
 		}
-	}
-	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
-	cout << "WORK_SIZE:" << WORK_SIZE << endl;
-	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
-	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
-
-	int DeviceCount;
-	cudaGetDeviceCount(&DeviceCount);
-	cout << "Detect " << DeviceCount << " cuda devices" << endl;
-	for (int i = 0; i < DeviceCount; i++){
-		cudaDeviceProp deviceProp;
-		cudaGetDeviceProperties(&deviceProp, i);
-		cout << "device " << i << " name: " << deviceProp.name << endl;
 	}
 
 	cudaSetDevice(0);
@@ -118,7 +105,7 @@ int main(int argc, char** argv){
 	delete fStack;
 	delete [] index;
 	delete [] f1;
-	system("pause");
+	//system("pause");
 
 }
 
@@ -232,9 +219,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete tidArr;
 	delete iidArr;
 
-	cout << "custCount" << custCount << endl;
-	cout << "itemCount" << itemCount << endl;
-	cout << "minSup: " << float(custCount) * minSupPer << endl;
 	int minSup = custCount * minSupPer;
 	int f1Size = 0;
 	map<int, int> f1map;
@@ -246,7 +230,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 			f1Size++;
 		}
 	}
-	cout << "f1Size: " << f1Size << endl;
 	(*indexArray).ToArray(index, f1Size);
 	delete indexArray;
 	int maxCustTran = 0;
@@ -262,12 +245,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		exit(-1);
 	}
 	SeqBitmap::SetLength(sizeOfBitmaps[0], sizeOfBitmaps[1], sizeOfBitmaps[2], sizeOfBitmaps[3], sizeOfBitmaps[4]);
-	cout << "Max number of transactions for a custumer is:" << maxCustTran << endl;
-	cout << "total number of transactions is: " << avgCustTran << endl;
-	cout << "Average number of transactions for a custumer is:" << avgCustTran / (custCount - 1) << endl;
-	//for (int i = 0; i < 6; i++){
-	//	cout << "sizeOfBitmaps[" << i << "]: " << sizeOfBitmaps[i] << endl;
-	//}
 
 	f1 = new TreeNode*[f1Size];
 	for (int i = 0; i < f1Size; i++){
@@ -287,7 +264,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	int tidIdx = 0;
 	int bitmapType;
 	int current;
-	cout << "OverallCount" << overallCount << endl;
 	for (int i = 0; i < overallCount; i++){
 		if (cids[i] != lastCid){
 			lastCid = cids[i];
@@ -415,9 +391,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		igList[1][i].gresult = igresult[1];
 	}
 	
-	PrintMemInfo();
+	//PrintMemInfo();
 	while (1){
-		PrintMemInfo();
+		//PrintMemInfo();
 		if (fStack->empty()){
 			if (running){
 				cudaStreamSynchronize(kernelStream);
@@ -550,13 +526,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for kernel execution:" << total << endl;
 	cout << "total time for inner kernel execution:" << GPUList::kernelTime << endl;
 	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
-	cout << "total time for inner instruction:" << GPUList::instructionTime << endl;
-	cout << "total time for inner waiting:" << GPUList::waitingTime << endl;
 	cout << "total time for data preparing:" << prepare << endl;
 	cout << "total time for result processing:" << post << endl;
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
-	cout << "total Data Copied: " << GPUList::DataCopied << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq <<endl;
 }
 
