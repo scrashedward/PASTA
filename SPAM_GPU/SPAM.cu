@@ -131,7 +131,6 @@ int main(int argc, char** argv){
 	delete [] index;
 	delete [] f1;
 	//system("pause");
-	fgetc(stdin);
 }
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
