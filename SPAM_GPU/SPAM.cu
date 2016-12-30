@@ -154,6 +154,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	int custCount = -1;               // # of customers in the dataset (largest ID)
 	int itemCount = -1;               // # of items in the dataset (largest ID)
 	int lineCount = 0;                // number of transaction
+	int trueCustCount = 0;
 	int custTransSize = 400;
 	int itemCustSize = 400;
 	int *custTransCount = new int[custTransSize];
@@ -186,6 +187,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		if (custID >= custCount)
 		{
 			custCount = custID + 1;
+			trueCustCount++;
 
 			// make sure custTransCount is big enough
 			if (custCount > custTransSize)
@@ -243,10 +245,10 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete tidArr;
 	delete iidArr;
 
-	//cout << "custCount" << custCount << endl;
+	cout << "custCount:" << trueCustCount << endl;
 	//cout << "itemCount" << itemCount << endl;
 	//cout << "minSup: " << float(custCount) * minSupPer << endl;
-	int minSup = custCount * minSupPer;
+	int minSup = trueCustCount * minSupPer;
 	int f1Size = 0;
 	map<int, int> f1map;
 	ResizableArray *indexArray = new ResizableArray(10);
@@ -325,7 +327,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete [] iids;
 	delete [] custTransCount;
 	delete [] itemCustCount;
-	return DbInfo(custCount, f1Size);
+	return DbInfo(trueCustCount, f1Size);
 }
 
 void IncArraySize(int*& array, int oldSize, int newSize)
@@ -407,7 +409,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	while (!(fStack->empty())){
 		//PrintMemInfo();
 		t1 = clock();
-		if(OUTPUT)cout << "fStack size: " << fStack->size() << endl;
+		//if(OUTPUT)cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
 
