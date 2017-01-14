@@ -507,6 +507,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
+	PrintMemInfo();
 }
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
@@ -865,6 +866,7 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
+	PrintMemInfo();
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
@@ -993,5 +995,5 @@ void PrintMemInfo(){
 		system("pause");
 		exit(-1);
 	}
-	cout << "Mem usage: " << "Free: " << freeMem << "total: " << totalMem << endl;
+	cout << "Mem usage: " <<  totalMem - freeMem << endl;
 }
