@@ -25,6 +25,7 @@ struct DbInfo{
 };
 //C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\IBM Quest Data Generator\seq50.10.5.1.txt
 //C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\SPAM\Spam-1.3.3\Debug\input.txt
+//C:\Users\YuHeng.Hsieh\Box Sync\Reports\GPSAM\BMS1_spmf.clean.tran
 
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
@@ -104,6 +105,7 @@ int main(int argc, char** argv){
 
 	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
 	SList * f1List = new SList(dbInfo.f1Size);
+	totalFreq += dbInfo.f1Size;
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
