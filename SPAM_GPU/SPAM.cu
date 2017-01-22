@@ -55,10 +55,10 @@ int main(int argc, char** argv){
 	float minSupPer = atof(argv[2]);
 
 	totalFreq = 0;
-	MAX_BLOCK_NUM = 512;
-	WORK_SIZE = MAX_BLOCK_NUM * 8;
-	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
-	MAX_THREAD_NUM = 1024;
+	MAX_BLOCK_NUM = 256;
+	WORK_SIZE = MAX_BLOCK_NUM * 2;
+	MAX_WORK_SIZE = MAX_BLOCK_NUM * 4;
+	MAX_THREAD_NUM = 128;
 
 	for (int i = 3; i < argc; i+=2){
 		if (strcmp(argv[i], "-b") == 0){
