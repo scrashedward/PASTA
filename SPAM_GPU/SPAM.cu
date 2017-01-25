@@ -55,9 +55,8 @@ int main(int argc, char** argv){
 	float minSupPer = atof(argv[2]);
 
 	totalFreq = 0;
+	int w = 2, m = 4;
 	MAX_BLOCK_NUM = 1024;
-	WORK_SIZE = MAX_BLOCK_NUM * 2;
-	MAX_WORK_SIZE = MAX_BLOCK_NUM * 4;
 	MAX_THREAD_NUM = 512;
 
 	for (int i = 3; i < argc; i+=2){
@@ -65,10 +64,10 @@ int main(int argc, char** argv){
 			MAX_BLOCK_NUM = atoi(argv[i + 1]);
 		}
 		else if (strcmp(argv[i], "-w") == 0){
-			WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
+			w = atoi(argv[i + 1]);
 		}
 		else if (strcmp(argv[i], "-m") == 0){
-			MAX_WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
+			m = atoi(argv[i + 1]);
 		}
 		else if (strcmp(argv[i], "-t") == 0){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
@@ -82,10 +81,14 @@ int main(int argc, char** argv){
 			cout << "output seq pattern\n";
 		}
 	}
-	//cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
-	//cout << "WORK_SIZE:" << WORK_SIZE << endl;
-	//cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
-	//cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
+
+	WORK_SIZE = MAX_BLOCK_NUM * w;
+	MAX_WORK_SIZE = MAX_BLOCK_NUM * m;
+
+	cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
+	cout << "WORK_SIZE:" << WORK_SIZE << endl;
+	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
+	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
 
 	//int DeviceCount;
 	//cudaGetDeviceCount(&DeviceCount);
