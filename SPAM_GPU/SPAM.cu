@@ -80,6 +80,7 @@ int main(int argc, char** argv){
 
 	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
 	SList * f1List = new SList(dbInfo.f1Size);
+	totalFreq += dbInfo.f1Size;
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
@@ -130,6 +131,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	int custCount = -1;               // # of customers in the dataset (largest ID)
 	int itemCount = -1;               // # of items in the dataset (largest ID)
 	int lineCount = 0;                // number of transaction
+	int totalCustCount = 0;
 	int custTransSize = 400;
 	int itemCustSize = 400;
 	int *custTransCount = new int[custTransSize];
@@ -162,6 +164,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		if (custID >= custCount)
 		{
 			custCount = custID + 1;
+			totalCustCount++;
 
 			// make sure custTransCount is big enough
 			if (custCount > custTransSize)
@@ -219,7 +222,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete tidArr;
 	delete iidArr;
 
-	int minSup = custCount * minSupPer;
+	int minSup = totalCustCount * minSupPer;
 	int f1Size = 0;
 	map<int, int> f1map;
 	ResizableArray *indexArray = new ResizableArray(10);
@@ -290,7 +293,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 	delete [] iids;
 	delete [] custTransCount;
 	delete [] itemCustCount;
-	return DbInfo(custCount, f1Size);
+	return DbInfo(totalCustCount, f1Size);
 }
 
 void IncArraySize(int*& array, int oldSize, int newSize)
@@ -531,6 +534,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
 	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq <<endl;
+	PrintMemInfo();
 }
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
@@ -773,5 +777,5 @@ void PrintMemInfo(){
 		system("pause");
 		exit(-1);
 	}
-	cout << "Mem usage: " << "Free: " << freeMem << "total: " << totalMem << endl;
+	cout << "Mem usage: " << totalMem - freeMem << endl;
 }

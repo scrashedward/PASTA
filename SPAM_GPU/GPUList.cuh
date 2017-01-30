@@ -117,8 +117,8 @@ public:
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, cudaStream_t kernelStream){
 		CudaMemcpy(false, kernelStream);
 		clock_t t1 = clock();
-		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			CudaSupportCount << < blockNum, threadNum, sizeof(int)*threadNum, kernelStream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
+		for (int oldBlock = 0; oldBlock < length; oldBlock += blockNum){
+			CudaSupportCount << < (length-oldBlock) < blockNum?(length-oldBlock) : blockNum, threadNum, sizeof(int)*threadNum, kernelStream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
