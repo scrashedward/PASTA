@@ -45,6 +45,7 @@ int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
 bool OUTPUT = false;
+clock_t cpuTotal = 0, cpuSup = 0;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -54,7 +55,7 @@ int main(int argc, char** argv){
 	// the minimun support in percentage
 	float minSupPer = atof(argv[2]);
 
-	totalFreq = 0;
+	/*totalFreq = 0;
 	int w = 2, m = 4;
 	MAX_BLOCK_NUM = 1024;
 	MAX_THREAD_NUM = 512;
@@ -90,6 +91,7 @@ int main(int argc, char** argv){
 	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
 	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
 
+	*/
 	//int DeviceCount;
 	//cudaGetDeviceCount(&DeviceCount);
 	//cout << "Detect " << DeviceCount << " cuda devices" << endl;
@@ -99,7 +101,7 @@ int main(int argc, char** argv){
 	//	cout << "device " << i << " name: " << deviceProp.name << endl;
 	//}
 
-	cudaSetDevice(0);
+	//cudaSetDevice(0);
 
 	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
@@ -124,12 +126,13 @@ int main(int argc, char** argv){
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
-		//DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
+		DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
+	cout << "cpu total: " << cpuTotal << " cpu support: " << cpuSup << endl;
 	//cout << "time taken : " << clock() - t1 << endl;
 
-	if (NAIVE)FindSeqPatternNaive(fStack, minSupPer*dbInfo.cNum, index);
-	else FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+	//if (NAIVE)FindSeqPatternNaive(fStack, minSupPer*dbInfo.cNum, index);
+	//else FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
 	delete fStack;
@@ -875,6 +878,7 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
+	clock_t t1 = clock();
 	SList* sList = new SList(currentNode->sListLen);
 	SList* iList = new SList(currentNode->iListLen);
 	int sLen = currentNode->sListLen;
@@ -898,16 +902,16 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 		tempNode->seq = currentNode->seq;
 		tempNode->seq.push_back(-1);
 		tempNode->seq.push_back(index[sList->list[i]]);
-		vector<int> temp = tempNode->seq;
-		for (int j = 0; j < temp.size(); j++){
-			if (temp[j] != -1){
-				cout << temp[j] << " ";
-			}
-			else{
-				cout << ", ";
-			}
-		}
-		cout << " " << sup << endl;
+		//vector<int> temp = tempNode->seq;
+		//for (int j = 0; j < temp.size(); j++){
+		//	if (temp[j] != -1){
+		//		cout << temp[j] << " ";
+		//	}
+		//	else{
+		//		cout << ", ";
+		//	}
+		//}
+		//cout << " " << sup << endl;
 		DFSPruning(tempNode, minSup, index);
 	}
 	for (int i = 0; i < iLen; i++){
@@ -924,19 +928,20 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 		tempNode->iListStart = i + 1;
 		tempNode->seq = currentNode->seq;
 		tempNode->seq.push_back(index[iList->list[i]]);
-		vector<int> temp = tempNode->seq;
-		for (int j = 0; j < temp.size(); j++){
-			if (temp[j] != -1){
-				cout << temp[j] << " ";
-			}
-			else{
-				cout << ", ";
-			}
-		}
-		cout << " " << sup << endl;
+		//vector<int> temp = tempNode->seq;
+		//for (int j = 0; j < temp.size(); j++){
+		//	if (temp[j] != -1){
+		//		cout << temp[j] << " ";
+		//	}
+		//	else{
+		//		cout << ", ";
+		//	}
+		//}
+		//cout << " " << sup << endl;
 		DFSPruning(tempNode, minSup, index);
 	}
 
+	cpuTotal += clock() - t1;
 	tempNode->iBitmap->Delete();
 	delete sList;
 	delete iList;
@@ -945,6 +950,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 }
 
 int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
+	clock_t t1 = clock();
 	int support = 0;
 	int temp;
 	if (type){
@@ -969,7 +975,7 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 			}
 		}
 	}
-
+	cpuSup += clock() - t1;
 	return support;
 }
 
