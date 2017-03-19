@@ -42,6 +42,7 @@ int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
+cudaStream_t kernelStream, copyStream;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -74,32 +75,36 @@ int main(int argc, char** argv){
 
 	cudaSetDevice(0);
 
+	cudaStreamCreate(&kernelStream);
+	cudaStreamCreate(&copyStream);
 	TreeNode** f1 = NULL;
 	int *index = NULL;
-	Fstack* fStack = new Fstack();
+	Fstack* fStack = new Fstack(&copyStream);
 
 	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
 	SList * f1List = new SList(dbInfo.f1Size);
 	totalFreq += dbInfo.f1Size;
+	cout << "finish reading database" << endl;
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
-
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
 		f1[i]->iList = f1List->get();
 		f1[i]->sListLen = dbInfo.f1Size;
 		f1[i]->iListLen = dbInfo.f1Size - i - 1;
 		f1[i]->iListStart = i + 1;
-		f1[i]->iBitmap->CudaMemcpy(0);
+		f1[i]->iBitmap->CudaMemcpy(0, copyStream);
 	}
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
 		//DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
+	fStack->setBase(dbInfo.f1Size);
 	//cout << "time taken : " << clock() - t1 << endl;
-
+	PrintMemInfo();
+	system("pause");
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
@@ -336,10 +341,7 @@ int getBitmapType(int size){
 void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
 	tmining_start = clock();
-	cudaStream_t kernelStream, copyStream;
 	cudaError_t cudaError;
-	cudaStreamCreate(&kernelStream);
-	cudaStreamCreate(&copyStream);
 	stack<TreeNode*> currentStack[2];
 	TreeNode* currentNodePtr;
 	int sWorkSize[2] = { 0 };
@@ -420,7 +422,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			}
 		}
 		t1 = clock();
-		//cout << "fStack size: " << fStack->size() << endl;
+		cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize[tag] = 0;
 		iWorkSize[tag] = 0;
 
@@ -438,8 +440,11 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			system("pause");
 			exit(-1);
 		}
-		while (min(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
+		while (max(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
 			currentNodePtr = fStack->top();
+			if (!currentNodePtr->iBitmap->memPos){
+				currentNodePtr->iBitmap->CudaMemcpy(0,copyStream);
+			}
 			sListLen = currentNodePtr->sListLen;
 			iListLen = currentNodePtr->iListLen;
 			iListStart = currentNodePtr->iListStart;
@@ -447,7 +452,10 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			for (int j = 0; j < sListLen; j++){
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
-				tempNode->iBitmap->CudaMalloc();
+				if (!tempNode->iBitmap->CudaMalloc()){
+					fStack->free();
+					tempNode->iBitmap->CudaMalloc();
+				}
 				tempNode->seq = currentNodePtr->seq;
 				sResultNodes[tag][sWorkSize[tag]] = tempNode;
 
@@ -461,7 +469,10 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			for (int j = 0; j < iListLen; j++){
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
-				tempNode->iBitmap->CudaMalloc();
+				if (!tempNode->iBitmap->CudaMalloc()){
+					fStack->free();
+					tempNode->iBitmap->CudaMalloc();
+				}
 				tempNode->seq = currentNodePtr->seq;
 				//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
 				iResultNodes[tag][iWorkSize[tag]] = tempNode;
@@ -476,7 +487,6 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			fStack->pop();
 		}
 		prepare += clock() - t1;
-
 		if (running){
 			cudaStreamSynchronize(kernelStream);
 			for (int i = 0; i < 5; i++){
@@ -508,7 +518,10 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			cudaStreamSynchronize(copyStream);
 			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
 		}
+		cout << "Mem used: currentstack: " << currentStack[tag].size() << " iWorkSize: " << iWorkSize[tag] << " sWorkSize: " << sWorkSize[tag] << " mem satck size: " <<  SeqBitmap::gpuMemPool.size() <<  endl;
 		tag ^= 1;
+		PrintMemInfo();
+		system("pause");
 	}
 	delete [] sResultNodes[0];
 	delete[] iResultNodes[0];
@@ -528,7 +541,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 }
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int minSup, int *index  ){
-
+	cout << "start result collecting with stack size:" << SeqBitmap::gpuMemPool.size() << " sWorkSize: " << sWorkSize << " iWorkSize: " << iWorkSize << "currentStack size:" << currentStack.size() << endl;
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
 			sgList[i].clear();
@@ -638,6 +651,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		currentStack.pop();
 	}
+	cout << "finish result collecting with stack size: " << SeqBitmap::gpuMemPool.size() << endl;
 }
 
 

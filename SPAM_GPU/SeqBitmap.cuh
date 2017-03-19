@@ -34,6 +34,11 @@ public:
 
 	int *gpuMemList[5];
 	int *gpuMem;
+
+	SeqBitmap(){
+		memPos = true;
+	}
+
 	void Malloc(){
 		for (int i = 0; i < 5; i++){
 			bitmap[i] = new int[size[i]];
@@ -69,12 +74,16 @@ public:
 	// Variable type identify the direction of copy 
 	// 0 host to device
 	// 1 device to host
-	void CudaMemcpy(int type){
+	void CudaMemcpy(int type, cudaStream_t cudaStream){
 		if (type == 0){
-			CudaMalloc();
+			if (!CudaMalloc()){
+				cout << "This really should not happen" << endl;
+				system("pause");
+				exit(-2);
+			}
 			for (int i = 0; i < 5; i++){
 				cudaError_t error;
-				if ((error = cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice)) != cudaSuccess){
+				if ((error = cudaMemcpyAsync(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice, cudaStream )) != cudaSuccess){
 					cout << "cudaError: " << error << endl;
 					cout << "Memcpy fail in gpuMemList " << i << endl;
 					system("pause");
@@ -82,19 +91,19 @@ public:
 				}
 			}
 			Delete();
+			memPos = true;
 		}
 		else if (type == 1){
 			Malloc();
-			int sum = 0;
 			for (int i = 0; i < 5; i++){
-				if (cudaMemcpy(bitmap[i], gpuMem + sum, sizeof(int)*sizeGPU[i], cudaMemcpyDeviceToHost) != cudaSuccess){
+				if (cudaMemcpyAsync(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost, cudaStream) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
 					system("pause");
 					exit(-1);
 				}
-				sum += sizeGPU[i];
 			}
-
+			CudaFree();
+			memPos = false;
 		}
 	}
 	void CudaFree(){
@@ -142,14 +151,17 @@ public:
 		}
 	}
 
-	void CudaMalloc(){
+	bool CudaMalloc(){
 		if (!gpuMemPool.empty()){
 			gpuMemList[0] = gpuMemPool.top();
 			gpuMemPool.pop();
 		}
 		else{
 			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sizeSum);
-			if (error != cudaSuccess){
+			if (error == cudaErrorMemoryAllocation){
+				return false;
+			}
+			else if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "MemAlloc fail" << endl;
 				system("pause");
@@ -161,6 +173,7 @@ public:
 			sum += size[i];
 			gpuMemList[i + 1] = (gpuMemList[0] + sum);
 		}
+		return true;
 	}
 };
 

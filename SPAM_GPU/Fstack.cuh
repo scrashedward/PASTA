@@ -1,10 +1,11 @@
 #include <string.h>
+#include <iostream>
 #include "TreeNode.cuh"
 
 
 class Fstack{
 public:
-	Fstack();
+	Fstack(cudaStream_t*);
 	~Fstack();
 	TreeNode* pop();
 	void push(TreeNode* itm);
@@ -14,6 +15,7 @@ public:
 	int getBase();
 	void free();
 	bool empty();
+	cudaStream_t* cudaStream;
 private:
 	int len=0;
 	int base;
@@ -22,8 +24,9 @@ private:
 
 };
 
-Fstack::Fstack(){
+Fstack::Fstack(cudaStream_t* stream){
 	ptr = new TreeNode*[defaultLen];
+	cudaStream = stream;
 }
 
 Fstack::~Fstack(){
@@ -33,6 +36,10 @@ Fstack::~Fstack(){
 TreeNode* Fstack::pop(){
 	if (len != 0){
 		len--;
+		if (len < base){
+			base--;
+			cout << "decrease base to " << base << endl;
+		}
 		return ptr[len];
 	}
 }
@@ -66,7 +73,23 @@ int Fstack::getBase(){
 }
 
 void Fstack::free(){
-	
+	cout << "swapping happenning, from " << base << endl;
+	cout << "stack size now " << len << endl;
+	size_t freeMem, totalMem;
+	cudaError_t err;
+	err = cudaMemGetInfo(&freeMem, &totalMem);
+	if (err != cudaSuccess){
+		printf("Error: %s\n", cudaGetErrorString(err));
+		system("pause");
+		exit(-1);
+	}
+	cout << "Mem usage: " << totalMem - freeMem << endl;
+	system("pause");
+	if (ptr[base]->iBitmap->memPos){
+		ptr[base]->iBitmap->CudaMemcpy(1, *cudaStream);
+	}
+	base++;
+	cout << "base is now " << base << endl;
 }
 
 bool Fstack::empty(){
