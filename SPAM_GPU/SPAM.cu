@@ -438,7 +438,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			system("pause");
 			exit(-1);
 		}
-		while (min(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
+		while (max(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
 			if (SeqBitmap::memPos){ 
 				
 			}
