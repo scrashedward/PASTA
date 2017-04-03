@@ -1,6 +1,7 @@
 #include <string.h>
 #include <iostream>
 #include "TreeNode.cuh"
+#include "SeqBitmap.cuh"
 
 
 class Fstack{
@@ -19,6 +20,7 @@ public:
 private:
 	int len=0;
 	int base;
+	bool first = true;
 	int defaultLen = 100;
 	TreeNode** ptr;
 
@@ -73,8 +75,8 @@ int Fstack::getBase(){
 }
 
 void Fstack::free(){
-	cout << "swapping happenning, from " << base << endl;
-	cout << "stack size now " << len << endl;
+	//cout << "swapping happenning, from " << base << endl;
+	//cout << "stack size now " << len << endl;
 	size_t freeMem, totalMem;
 	cudaError_t err;
 	err = cudaMemGetInfo(&freeMem, &totalMem);
@@ -83,13 +85,31 @@ void Fstack::free(){
 		system("pause");
 		exit(-1);
 	}
-	cout << "Mem usage: " << totalMem - freeMem << endl;
-	system("pause");
-	if (ptr[base]->iBitmap->memPos){
-		ptr[base]->iBitmap->CudaMemcpy(1, *cudaStream);
+	//cout << "Mem usage: " << totalMem - freeMem << endl;
+	if (len > base + 99){
+		for (int i = 0; i < 100; i++){
+			if (ptr[base + i]->iBitmap->memPos){
+				ptr[base + i]->iBitmap->CudaMemcpy(1, *cudaStream);
+			}
+		}
+		base += 100;
 	}
-	base++;
+	else{
+		if (ptr[base]->iBitmap->memPos){
+			ptr[base]->iBitmap->CudaMemcpy(1, *cudaStream);
+		}
+		base++;
+	}
 	cout << "base is now " << base << endl;
+	//for kernel to be successful
+	if (first){
+		for (int i = 0; i < SeqBitmap::gpuMemPool.size() > 100 ? 100 : SeqBitmap::gpuMemPool.size(); i++){
+			cudaFree(SeqBitmap::gpuMemPool.top());
+			SeqBitmap::gpuMemPool.pop();
+		}
+		first = false;
+		free();
+	}
 }
 
 bool Fstack::empty(){

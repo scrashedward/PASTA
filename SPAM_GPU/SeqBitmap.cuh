@@ -29,6 +29,7 @@ public:
 	static int sizeGPU[5];
 	bool memPos; // memory on GPU(1) CPU(0)
 	static int sizeSum;
+	static int gpuSizeSum;
 	static stack<int*> gpuMemPool;
 	static bool memFull;
 
@@ -65,8 +66,9 @@ public:
 			sizeGPU[i] = (size[i] % 4 == 0) ? size[i] : ((size[i] + 4) - size[i] % 4);
 			//cout << size[i] << endl;
 		}
-		for (auto i : size){
-			sizeSum += i;
+		for (int i = 0; i < 5; i++){
+			sizeSum += size[i];
+			gpuSizeSum += sizeGPU[i];
 		}
 	}
 	//
@@ -74,9 +76,9 @@ public:
 	// Variable type identify the direction of copy 
 	// 0 host to device
 	// 1 device to host
-	void CudaMemcpy(int type, cudaStream_t cudaStream){
+	void CudaMemcpy(int type, cudaStream_t cudaStream, bool init = false){
 		if (type == 0){
-			if (!CudaMalloc()){
+			if (!CudaMalloc(init)){
 				cout << "This really should not happen" << endl;
 				system("pause");
 				exit(-2);
@@ -151,26 +153,31 @@ public:
 		}
 	}
 
-	bool CudaMalloc(){
-		if (!gpuMemPool.empty()){
-			gpuMemList[0] = gpuMemPool.top();
-			gpuMemPool.pop();
-		}
-		else{
-			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sizeSum);
-			if (error == cudaErrorMemoryAllocation){
-				return false;
-			}
-			else if (error != cudaSuccess){
+	bool CudaMalloc(bool init = false){
+
+		if (init){
+			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* gpuSizeSum);
+			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "MemAlloc fail" << endl;
 				system("pause");
 				exit(-1);
 			}
 		}
+		else{
+			if (!gpuMemPool.empty()){
+				gpuMemList[0] = gpuMemPool.top();
+				gpuMemPool.pop();
+			}
+			else{
+				memFull = true;// todo can be deleted?
+				return false;
+			}
+		}
+
 		int sum = 0;
 		for (int i = 0; i < 4; i++){
-			sum += size[i];
+			sum += sizeGPU[i];
 			gpuMemList[i + 1] = (gpuMemList[0] + sum);
 		}
 		return true;
@@ -178,6 +185,7 @@ public:
 };
 
 int SeqBitmap::sizeSum = 0;
+int SeqBitmap::gpuSizeSum = 0;
 int SeqBitmap::length[5] = {0};
 int SeqBitmap::size[5] = { 0 };
 int SeqBitmap::sizeGPU[5] = { 0 };

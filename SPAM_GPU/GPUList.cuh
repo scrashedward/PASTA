@@ -65,9 +65,6 @@ public:
 		src1[length] = s1;
 		src2[length] = s2;
 		dst[length] = d;
-		if (debug && length == 112){
-			cout << "here length 112 is " << src1[length] << endl;
-		}
 		length++;
 		return;
 	}
@@ -120,7 +117,10 @@ public:
 		for (int oldBlock = 0; oldBlock < length; oldBlock += blockNum){
 			CudaSupportCount << < (length-oldBlock) < blockNum?(length-oldBlock) : blockNum, threadNum, sizeof(int)*threadNum, kernelStream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
 			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			if (err != cudaSuccess) {
+				printf("Error: %s in supportCounting\n", cudaGetErrorString(err));
+				system("pause");
+			}
 		}
 		kernelTime += (clock() - t1);
 		//CudaMemcpy(true);
