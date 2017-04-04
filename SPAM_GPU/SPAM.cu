@@ -814,5 +814,5 @@ int GetMemSize(){
 		system("pause");
 		exit(-1);
 	}
-	return (freeMem - (1 << 30))/4;//leave 512MB for system work and to ensure the kernel are working correctly
+	return (freeMem - (1 << 29))/4;//leave 512MB for system work and to ensure the kernel are working correctly
 }

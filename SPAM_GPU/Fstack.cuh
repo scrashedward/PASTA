@@ -102,14 +102,14 @@ void Fstack::free(){
 	}
 	cout << "base is now " << base << endl;
 	//for kernel to be successful
-	if (first){
-		for (int i = 0; i < SeqBitmap::gpuMemPool.size() > 100 ? 100 : SeqBitmap::gpuMemPool.size(); i++){
-			cudaFree(SeqBitmap::gpuMemPool.top());
-			SeqBitmap::gpuMemPool.pop();
-		}
-		first = false;
-		free();
-	}
+	//if (first){
+	//	for (int i = 0; i < SeqBitmap::gpuMemPool.size() > 100 ? 100 : SeqBitmap::gpuMemPool.size(); i++){
+	//		cudaFree(SeqBitmap::gpuMemPool.top());
+	//		SeqBitmap::gpuMemPool.pop();
+	//	}
+	//	first = false;
+	//	free();
+	//}
 }
 
 bool Fstack::empty(){

@@ -170,7 +170,7 @@ public:
 				gpuMemPool.pop();
 			}
 			else{
-				memFull = true;// todo can be deleted?
+				memFull = true;// todo: can be deleted?
 				return false;
 			}
 		}
