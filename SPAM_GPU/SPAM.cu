@@ -109,8 +109,8 @@ int main(int argc, char** argv){
 	}
 	fStack->setBase(dbInfo.f1Size);
 	//cout << "time taken : " << clock() - t1 << endl;
+	cout << "Size of database ";
 	PrintMemInfo();
-	system("pause");
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
@@ -817,5 +817,6 @@ int GetMemSize(){
 		system("pause");
 		exit(-1);
 	}
-	return (freeMem - (1 << 29))/4;//leave 512MB for system work and to ensure the kernel are working correctly
+	if (ADDITIONAL_MEM == 0 || ADDITIONAL_MEM>(freeMem>>20)) return (freeMem - (1 << 29))/4;//leave 512MB for system work and to ensure the kernel are working correctly
+	else return ADDITIONAL_MEM << 18;
 }
