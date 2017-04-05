@@ -36,7 +36,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int minSup, int *index);
 void PrintMemInfo();
-int GetMemSize();
+size_t GetMemSize();
 
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
@@ -402,7 +402,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		igList[1][i].gresult = igresult[1];
 	}
 	
-	int suggestMemSize = GetMemSize();
+	size_t suggestMemSize = GetMemSize();
 	suggestMemSize -= suggestMemSize%SeqBitmap::gpuSizeSum;
 	int* gpuMem;
 	if (cudaMalloc(&gpuMem, sizeof(int)*suggestMemSize)!=cudaSuccess){
@@ -808,7 +808,7 @@ void PrintMemInfo(){
 	cout << "Mem usage: " << totalMem - freeMem << endl;
 }
 
-int GetMemSize(){
+size_t GetMemSize(){
 	size_t freeMem, totalMem;
 	cudaError_t err;
 	err = cudaMemGetInfo(&freeMem, &totalMem);
