@@ -405,7 +405,10 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	int suggestMemSize = GetMemSize();
 	suggestMemSize -= suggestMemSize%SeqBitmap::gpuSizeSum;
 	int* gpuMem;
-	cudaMalloc(&gpuMem,sizeof(int)*suggestMemSize);
+	if (cudaMalloc(&gpuMem, sizeof(int)*suggestMemSize)!=cudaSuccess){
+		cout << "cudaMalloc failed " << endl;
+		fgetc(stdin);
+	}
 	while (suggestMemSize > 0){
 		suggestMemSize-=SeqBitmap::gpuSizeSum;
 		SeqBitmap::gpuMemPool.push(gpuMem+suggestMemSize);
@@ -413,7 +416,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 
 	if (suggestMemSize != 0){
 		cout << "something wrong!!!" << endl;
-		system("pause");
+		fgetc(stdin);
 	}
 	PrintMemInfo();
 	system("pause");
