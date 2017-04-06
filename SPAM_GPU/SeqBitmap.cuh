@@ -28,6 +28,7 @@ public:
 	static int size[5];
 	static int sizeGPU[5];
 	bool memPos; // memory on GPU(1) CPU(0)
+	bool needDelete;
 	static int sizeSum;
 	static int gpuSizeSum;
 	static stack<int*> gpuMemPool;
@@ -38,6 +39,7 @@ public:
 
 	SeqBitmap(){
 		memPos = true;
+		needDelete = false;
 	}
 
 	void Malloc(){
@@ -85,20 +87,21 @@ public:
 			}
 			for (int i = 0; i < 5; i++){
 				cudaError_t error;
-				if ((error = cudaMemcpyAsync(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice, cudaStream )) != cudaSuccess){
+				if ((error = cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice)) != cudaSuccess){
 					cout << "cudaError: " << error << endl;
 					cout << "Memcpy fail in gpuMemList " << i << endl;
 					system("pause");
 					exit(-1);
 				}
 			}
-			Delete();
+			//Delete();
+			needDelete = true;
 			memPos = true;
 		}
 		else if (type == 1){
 			Malloc();
 			for (int i = 0; i < 5; i++){
-				if (cudaMemcpyAsync(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost, cudaStream) != cudaSuccess){
+				if (cudaMemcpy(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
 					system("pause");
 					exit(-1);

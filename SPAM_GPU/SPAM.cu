@@ -670,6 +670,9 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 			if (currentNodePtr->iList->free() == 0){
 				delete currentNodePtr->iList;
 			}
+			if (currentNodePtr->iBitmap->needDelete){
+				currentNodePtr->iBitmap->Delete();
+			}
 			delete currentNodePtr->iBitmap;
 			delete currentNodePtr;
 		}
