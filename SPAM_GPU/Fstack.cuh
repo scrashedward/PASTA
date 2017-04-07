@@ -18,10 +18,10 @@ public:
 	bool empty();
 	cudaStream_t* cudaStream;
 private:
-	int len=0;
+	int len;
 	int base;
-	bool first = true;
-	int defaultLen = 100;
+	bool first;
+	int defaultLen;
 	TreeNode** ptr;
 
 };
@@ -29,6 +29,9 @@ private:
 Fstack::Fstack(cudaStream_t* stream){
 	ptr = new TreeNode*[defaultLen];
 	cudaStream = stream;
+	len = 0;
+	first = true;
+	defaultLen = 100;
 }
 
 Fstack::~Fstack(){
@@ -44,6 +47,7 @@ TreeNode* Fstack::pop(){
 		}
 		return ptr[len];
 	}
+	return 0;
 }
 
 void Fstack::push(TreeNode* itm){

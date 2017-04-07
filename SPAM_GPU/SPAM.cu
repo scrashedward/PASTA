@@ -357,7 +357,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	int iListStart;
 	short tag = 0;
 	bool running = false, hasResult = false;
-	size_t totalMem, freeMem;
+//	size_t totalMem, freeMem;
 	int *sResult[2], *iResult[2];
 	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);

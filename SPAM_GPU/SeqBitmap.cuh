@@ -44,13 +44,25 @@ public:
 
 	void Malloc(){
 		for (int i = 0; i < 5; i++){
+			//if(cudaHostAlloc(&bitmap[i], sizeof(int)*size[i], cudaHostAllocDefault)!=cudaSuccess){
+			//	cudaError_t error = cudaGetLastError();
+			//	cout << cudaGetErrorString(error) << "in cudaHostAlloc for bitmap" << endl;
+			//	fgetc(stdin);
+			//	exit(-1);
+			//}
 			bitmap[i] = new int[size[i]];
 			memset(bitmap[i], 0, sizeof(int)*size[i]);
 		}
 	}
 	void Delete(){
-		for (auto b : bitmap){
-			delete[] b;
+		for (int i = 0 ; i < 5 ; i++){
+			//if(cudaFreeHost(bitmap[i])!=cudaSuccess){
+			//	cudaError_t error = cudaGetLastError();
+			//	cout << cudaGetErrorString(error) << "in cudaHostFree for bitmap" << endl;
+			//	fgetc(stdin);
+			//	exit(-2);
+			//}
+			delete[] bitmap[i];
 		}
 	}
 	static void SetLength(int l4, int l8, int l16, int l32, int l64){
@@ -87,7 +99,7 @@ public:
 			}
 			for (int i = 0; i < 5; i++){
 				cudaError_t error;
-				if ((error = cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice)) != cudaSuccess){
+				if ((error = cudaMemcpyAsync(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
 					cout << "cudaError: " << error << endl;
 					cout << "Memcpy fail in gpuMemList " << i << endl;
 					system("pause");
@@ -95,13 +107,13 @@ public:
 				}
 			}
 			//Delete();
-			needDelete = true;
+			//needDelete = true;
 			memPos = true;
 		}
 		else if (type == 1){
 			Malloc();
 			for (int i = 0; i < 5; i++){
-				if (cudaMemcpy(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost) != cudaSuccess){
+				if (cudaMemcpyAsync(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost, cudaStream) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
 					system("pause");
 					exit(-1);
@@ -109,6 +121,7 @@ public:
 			}
 			CudaFree();
 			memPos = false;
+			needDelete = true;
 		}
 	}
 	void CudaFree(){
