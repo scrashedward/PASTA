@@ -44,7 +44,7 @@ public:
 
 	void Malloc(){
 		for (int i = 0; i < 5; i++){
-			//if(cudaHostAlloc(&bitmap[i], sizeof(int)*size[i], cudaHostAllocDefault)!=cudaSuccess){
+			//if(cudaMallocHost(&bitmap[i], sizeof(int)*size[i])!=cudaSuccess){
 			//	cudaError_t error = cudaGetLastError();
 			//	cout << cudaGetErrorString(error) << "in cudaHostAlloc for bitmap" << endl;
 			//	fgetc(stdin);
@@ -55,10 +55,10 @@ public:
 		}
 	}
 	void Delete(){
+		//cudaError_t cudaError;
 		for (int i = 0 ; i < 5 ; i++){
-			//if(cudaFreeHost(bitmap[i])!=cudaSuccess){
-			//	cudaError_t error = cudaGetLastError();
-			//	cout << cudaGetErrorString(error) << "in cudaHostFree for bitmap" << endl;
+			//if((cudaError = cudaFreeHost(bitmap[i]))!=cudaSuccess){
+			//	cout << cudaGetErrorString(cudaError) << "in cudaHostFree for bitmap, error code:" << cudaError << endl;
 			//	fgetc(stdin);
 			//	exit(-2);
 			//}
@@ -123,6 +123,12 @@ public:
 			memPos = false;
 			needDelete = true;
 		}
+		//cudaStreamSynchronize(cudaStream);
+		//cudaError_t error = cudaGetLastError();
+		//if(error != cudaSuccess){
+		//	cout << cudaGetErrorString(error) << "in Memcpy, error code:" << error << endl;
+		//	fgetc(stdin);
+		//}
 	}
 	void CudaFree(){
 		gpuMemPool.push(gpuMemList[0]);
