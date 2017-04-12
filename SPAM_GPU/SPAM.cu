@@ -359,12 +359,19 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	int iListStart;
 	short tag = 0;
 	bool running = false, hasResult = false;
-	size_t totalMem, freeMem;
+//	size_t totalMem, freeMem;
 	int *sResult[2], *iResult[2];
 	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&sResult[1], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[1], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
+
+	cudaError = cudaGetLastError();
+	if(cudaError!=cudaSuccess){
+		cout << cudaGetErrorString(cudaError) << " in results" << endl;
+		fgetc(stdin);
+		exit(-1);
+	}
 
 	TreeNode ** sResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
 	TreeNode ** iResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
