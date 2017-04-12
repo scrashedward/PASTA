@@ -40,7 +40,7 @@ TreeNode* Fstack::pop(){
 		len--;
 		if (len < base){
 			base--;
-			cout << "decrease base to " << base << endl;
+			//cout << "decrease base to " << base << endl;
 		}
 		return ptr[len];
 	}
@@ -100,7 +100,7 @@ void Fstack::free(){
 		}
 		base++;
 	}
-	cout << "base is now " << base << endl;
+	//cout << "base is now " << base << endl;
 	//for kernel to be successful
 	//if (first){
 	//	for (int i = 0; i < SeqBitmap::gpuMemPool.size() > 100 ? 100 : SeqBitmap::gpuMemPool.size(); i++){

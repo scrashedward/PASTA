@@ -76,17 +76,17 @@ public:
 	void CudaMemcpy(bool kind, cudaStream_t cudaStream){
 		if (!kind){
 			clock_t t1 = clock();
-			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if (cudaMemcpy(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if (cudaMemcpy(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				system("pause");
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if (cudaMemcpy(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
 				system("pause");
 				exit(-1);
@@ -96,7 +96,7 @@ public:
 		else{
 			clock_t t1 = clock();
 			cudaError_t error;
-			error = cudaMemcpyAsync(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost, cudaStream);
+			error = cudaMemcpy(result, gresult, sizeof(int)* length, cudaMemcpyDeviceToHost);
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;

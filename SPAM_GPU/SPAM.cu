@@ -111,6 +111,8 @@ int main(int argc, char** argv){
 	//cout << "time taken : " << clock() - t1 << endl;
 	cout << "Size of database ";
 	PrintMemInfo();
+	cout << "size of item:" << SeqBitmap::gpuSizeSum << "bytes" << endl;
+	cout << "require minimum: " << SeqBitmap::gpuSizeSum * MAX_BLOCK_NUM * 2 << "bytes" << endl;
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
@@ -402,6 +404,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		igList[1][i].gresult = igresult[1];
 	}
 	
+	PrintMemInfo();
 	size_t suggestMemSize = GetMemSize();
 	suggestMemSize -= suggestMemSize%SeqBitmap::gpuSizeSum;
 	int* gpuMem;
@@ -419,8 +422,6 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		fgetc(stdin);
 	}
 	PrintMemInfo();
-	system("pause");
-	//PrintMemInfo();
 	while (1){
 		//PrintMemInfo();
 		if (fStack->empty()){
@@ -446,7 +447,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			}
 		}
 		t1 = clock();
-		cout << "fStack size: " << fStack->size() << endl;
+		//cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize[tag] = 0;
 		iWorkSize[tag] = 0;
 
@@ -468,7 +469,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			currentNodePtr = fStack->top();
 			if (!currentNodePtr->iBitmap->memPos){
 				currentNodePtr->iBitmap->CudaMemcpy(0,copyStream);
-				cout << "copy back at: " << fStack->size() << endl;
+				//cout << "copy back at: " << fStack->size() << endl;
 			}
 			sListLen = currentNodePtr->sListLen;
 			iListLen = currentNodePtr->iListLen;
@@ -545,7 +546,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		}
 		//cout << "Mem used: currentstack: " << currentStack[tag].size() << " iWorkSize: " << iWorkSize[tag] << " sWorkSize: " << sWorkSize[tag] << " mem satck size: " <<  SeqBitmap::gpuMemPool.size() <<  endl;
 		tag ^= 1;
-		PrintMemInfo();
+		//PrintMemInfo();
 	}
 	delete [] sResultNodes[0];
 	delete[] iResultNodes[0];
