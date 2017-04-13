@@ -24,6 +24,7 @@ const unsigned int Bit32Table[32] =
 class SeqBitmap{
 public:
 	int * bitmap[5];
+	int * b1,  *b2, *b3, *b4, *b5;
 	static int length[5];
 	static int size[5];
 	static int sizeGPU[5];
@@ -43,25 +44,15 @@ public:
 	}
 
 	void Malloc(){
+		needDelete = true;
+		cudaError_t error;
 		for (int i = 0; i < 5; i++){
-			//if(cudaMallocHost(&bitmap[i], sizeof(int)*size[i])!=cudaSuccess){
-			//	cudaError_t error = cudaGetLastError();
-			//	cout << cudaGetErrorString(error) << "in cudaHostAlloc for bitmap" << endl;
-			//	fgetc(stdin);
-			//	exit(-1);
-			//}
 			bitmap[i] = new int[size[i]];
 			memset(bitmap[i], 0, sizeof(int)*size[i]);
-		}
+		}	
 	}
 	void Delete(){
-		//cudaError_t cudaError;
 		for (int i = 0 ; i < 5 ; i++){
-			//if((cudaError = cudaFreeHost(bitmap[i]))!=cudaSuccess){
-			//	cout << cudaGetErrorString(cudaError) << "in cudaHostFree for bitmap, error code:" << cudaError << endl;
-			//	fgetc(stdin);
-			//	exit(-2);
-			//}
 			delete[] bitmap[i];
 		}
 	}
@@ -121,7 +112,6 @@ public:
 			}
 			CudaFree();
 			memPos = false;
-			needDelete = true;
 		}
 		//cudaStreamSynchronize(cudaStream);
 		//cudaError_t error = cudaGetLastError();

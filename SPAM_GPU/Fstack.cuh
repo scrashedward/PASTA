@@ -27,11 +27,11 @@ private:
 };
 
 Fstack::Fstack(cudaStream_t* stream){
+	defaultLen = 100;
 	ptr = new TreeNode*[defaultLen];
 	cudaStream = stream;
 	len = 0;
 	first = true;
-	defaultLen = 100;
 }
 
 Fstack::~Fstack(){
@@ -81,14 +81,6 @@ int Fstack::getBase(){
 void Fstack::free(){
 	//cout << "swapping happenning, from " << base << endl;
 	//cout << "stack size now " << len << endl;
-	size_t freeMem, totalMem;
-	cudaError_t err;
-	err = cudaMemGetInfo(&freeMem, &totalMem);
-	if (err != cudaSuccess){
-		printf("Error: %s\n", cudaGetErrorString(err));
-		system("pause");
-		exit(-1);
-	}
 	//cout << "Mem usage: " << totalMem - freeMem << endl;
 	if (len > base + 99){
 		for (int i = 0; i < 100; i++){
@@ -104,6 +96,12 @@ void Fstack::free(){
 		}
 		base++;
 	}
+
+	if (first){
+		cout << "swapping happended" << endl;
+		first = false;
+	}
+
 	//cout << "base is now " << base << endl;
 	//for kernel to be successful
 	//if (first){
