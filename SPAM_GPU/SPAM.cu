@@ -91,10 +91,13 @@ int main(int argc, char** argv){
 	SList * f1List = new SList(dbInfo.f1Size);
 	totalFreq += dbInfo.f1Size;
 	cout << "finish reading database" << endl;
+	int* f1Mem = 0;
+	cudaMalloc(&f1Mem, sizeof(int)* SeqBitmap::gpuSizeSum * dbInfo.f1Size);
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1List->list[i] = i;
 	}
 	for (int i = 0; i < dbInfo.f1Size; i++){
+		SeqBitmap::gpuMemPool.push(f1Mem + i * SeqBitmap::gpuSizeSum);
 		f1[i]->sList = f1List->get();
 		f1[i]->iList = f1List->get();
 		f1[i]->sListLen = dbInfo.f1Size;
@@ -111,7 +114,8 @@ int main(int argc, char** argv){
 	//cout << "time taken : " << clock() - t1 << endl;
 	cout << "Size of database ";
 	int datasetSize = PrintMemInfo();
-	unsigned long required = (unsigned long) SeqBitmap::gpuSizeSum * sizeof(int) * MAX_BLOCK_NUM * WORK_SIZE * 2 * 2 + datasetSize;
+	cout << "f1 size: " << dbInfo.f1Size << endl;
+	unsigned int required = (unsigned) SeqBitmap::gpuSizeSum * sizeof(int) * MAX_BLOCK_NUM * WORK_SIZE * 2 * 2 + datasetSize;
 	cout << "size of item:" << SeqBitmap::gpuSizeSum * sizeof(int) << "bytes" << endl;
 	cout << "require minimum: " <<  required << "bytes" << endl;
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
@@ -474,7 +478,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			system("pause");
 			exit(-1);
 		}
-		while (max(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
+		while ( sWorkSize[tag] + iWorkSize[tag] < WORK_SIZE && !(fStack->empty())){
 			currentNodePtr = fStack->top();
 			if (!currentNodePtr->iBitmap->memPos){
 				currentNodePtr->iBitmap->CudaMemcpy(0,copyStream);

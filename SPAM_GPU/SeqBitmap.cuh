@@ -163,16 +163,16 @@ public:
 
 	bool CudaMalloc(bool init = false){
 
-		if (init){
-			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* gpuSizeSum);
-			if (error != cudaSuccess){
-				cout << error << endl;
-				cout << "MemAlloc fail" << endl;
-				system("pause");
-				exit(-1);
-			}
-		}
-		else{
+		//if (init){
+		//	cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* gpuSizeSum);
+		//	if (error != cudaSuccess){
+		//		cout << error << endl;
+		//		cout << "MemAlloc fail" << endl;
+		//		system("pause");
+		//		exit(-1);
+		//	}
+		//}
+		//else{
 			if (!gpuMemPool.empty()){
 				gpuMemList[0] = gpuMemPool.top();
 				gpuMemPool.pop();
@@ -181,7 +181,7 @@ public:
 				memFull = true;// todo: can be deleted?
 				return false;
 			}
-		}
+		//}
 
 		int sum = 0;
 		for (int i = 0; i < 4; i++){
