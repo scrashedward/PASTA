@@ -115,7 +115,7 @@ int main(int argc, char** argv){
 	cout << "Size of database ";
 	int datasetSize = PrintMemInfo();
 	cout << "f1 size: " << dbInfo.f1Size << endl;
-	unsigned int required = (unsigned) SeqBitmap::gpuSizeSum * sizeof(int) * MAX_BLOCK_NUM * WORK_SIZE * 2 * 2 + datasetSize;
+	unsigned long required = (unsigned long) SeqBitmap::gpuSizeSum * (unsigned long)sizeof(int) * (unsigned long)WORK_SIZE * 2 + datasetSize;
 	cout << "size of item:" << SeqBitmap::gpuSizeSum * sizeof(int) << "bytes" << endl;
 	cout << "require minimum: " <<  required << "bytes" << endl;
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
