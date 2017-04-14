@@ -100,6 +100,8 @@ int main(int argc, char** argv){
 	}
 	//cout << "time taken : " << clock() - t1 << endl;
 
+	cout << "dataset size: " << endl;
+	PrintMemInfo();
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
@@ -394,7 +396,13 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		igList[1][i].gresult = igresult[1];
 	}
 	
-	//PrintMemInfo();
+	cout << "memory info before mining start:" << endl;
+	PrintMemInfo();
+	int sum = 0;
+	for (int i = 0; i < 5; i++){
+		sum += SeqBitmap::sizeGPU[i];
+	}
+	cout << "bitmap size: " << sum * 4 << endl;
 	while (1){
 		//PrintMemInfo();
 		if (fStack->empty()){
@@ -454,7 +462,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 					tempNode->iBitmap->CudaMalloc();
 					tempNode->seq = currentNodePtr->seq;
 					sResultNodes[tag][sWorkSize[tag]] = tempNode;
-
 					sWorkSize[tag]++;
 					for (int i = 0; i < 5; i++){
 						if (SeqBitmap::size[i] != 0){
@@ -480,6 +487,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				fStack->pop();
 			}
 		}
+		cout << "sSize: " << sWorkSize[tag] << " iSize: " << iWorkSize[tag] << endl;
+		cudaDeviceSynchronize();
+		PrintMemInfo();
+		fgetc(stdin);
 		prepare += clock() - t1;
 		if (SeqBitmap::memPos){
 
