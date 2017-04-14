@@ -35,14 +35,14 @@ void FindSeqPattern(Fstack*, int, int*);
 void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int minSup, int *index);
-void PrintMemInfo();
+int PrintMemInfo();
 size_t GetMemSize();
 
-int MAX_WORK_SIZE;
-int MAX_BLOCK_NUM;
-int WORK_SIZE;
-int MAX_THREAD_NUM;
-int ADDITIONAL_MEM;
+unsigned int MAX_WORK_SIZE;
+unsigned int MAX_BLOCK_NUM;
+unsigned int WORK_SIZE;
+unsigned int MAX_THREAD_NUM;
+unsigned int ADDITIONAL_MEM;
 int totalFreq;
 cudaStream_t kernelStream, copyStream;
 __global__ void tempDebug(int* input, int length, int bitmapType);
@@ -110,9 +110,10 @@ int main(int argc, char** argv){
 	fStack->setBase(dbInfo.f1Size);
 	//cout << "time taken : " << clock() - t1 << endl;
 	cout << "Size of database ";
-	PrintMemInfo();
-	cout << "size of item:" << SeqBitmap::gpuSizeSum << "bytes" << endl;
-	cout << "require minimum: " << SeqBitmap::gpuSizeSum * MAX_BLOCK_NUM * 2 << "bytes" << endl;
+	int datasetSize = PrintMemInfo();
+	unsigned long required = (unsigned long) SeqBitmap::gpuSizeSum * sizeof(int) * MAX_BLOCK_NUM * WORK_SIZE * 2 * 2 + datasetSize;
+	cout << "size of item:" << SeqBitmap::gpuSizeSum * sizeof(int) << "bytes" << endl;
+	cout << "require minimum: " <<  required << "bytes" << endl;
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
@@ -414,6 +415,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	PrintMemInfo();
 	size_t suggestMemSize = GetMemSize();
 	suggestMemSize -= suggestMemSize%SeqBitmap::gpuSizeSum;
+	cout << "Available memory size: " << suggestMemSize * sizeof(int) << endl;
 	int* gpuMem;
 	if (cudaMalloc(&gpuMem, sizeof(int)*suggestMemSize)!=cudaSuccess){
 		cout << "cudaMalloc failed " << endl;
@@ -566,8 +568,9 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
 	cout << "total time for data preparing:" << prepare << endl;
 	cout << "total time for result processing:" << post << endl;
-	cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
-	cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
+	//cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
+	//cout << "total time for D2Hcopy: " << GPUList::D2HTime << endl;
+	cout << "total swapped data: " << SeqBitmap::totalSwapped << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq <<endl;
 	PrintMemInfo();
 }
@@ -807,7 +810,7 @@ __global__ void tempDebug(int* input, int length, int bitmapType){
 	printf("%d\n", sup);
 }
 
-void PrintMemInfo(){
+int PrintMemInfo(){
 	size_t freeMem, totalMem;
 	cudaError_t err;
 	err = cudaMemGetInfo(&freeMem, &totalMem);
@@ -817,6 +820,7 @@ void PrintMemInfo(){
 		exit(-1);
 	}
 	cout << "Mem usage: " << totalMem - freeMem << endl;
+	return totalMem - freeMem;
 }
 
 size_t GetMemSize(){
@@ -828,6 +832,6 @@ size_t GetMemSize(){
 		system("pause");
 		exit(-1);
 	}
-	if (ADDITIONAL_MEM == 0 || ADDITIONAL_MEM>(freeMem>>20)) return (freeMem - (1 << 29))/4;//leave 512MB for system work and to ensure the kernel are working correctly
+	if (ADDITIONAL_MEM == 0 || ADDITIONAL_MEM>(freeMem>>20)) return (freeMem - (1 << 28))/4;//leave 256MB for system work and to ensure the kernel are working correctly
 	else return ADDITIONAL_MEM << 18;
 }

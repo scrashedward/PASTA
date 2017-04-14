@@ -34,6 +34,7 @@ public:
 	static int gpuSizeSum;
 	static stack<int*> gpuMemPool;
 	static bool memFull;
+	static unsigned long totalSwapped;
 
 	int *gpuMemList[5];
 	int *gpuMem;
@@ -110,15 +111,10 @@ public:
 					exit(-1);
 				}
 			}
+			totalSwapped += gpuSizeSum * sizeof(int);
 			CudaFree();
 			memPos = false;
 		}
-		//cudaStreamSynchronize(cudaStream);
-		//cudaError_t error = cudaGetLastError();
-		//if(error != cudaSuccess){
-		//	cout << cudaGetErrorString(error) << "in Memcpy, error code:" << error << endl;
-		//	fgetc(stdin);
-		//}
 	}
 	void CudaFree(){
 		gpuMemPool.push(gpuMemList[0]);
@@ -201,6 +197,7 @@ int SeqBitmap::gpuSizeSum = 0;
 int SeqBitmap::length[5] = {0};
 int SeqBitmap::size[5] = { 0 };
 int SeqBitmap::sizeGPU[5] = { 0 };
+unsigned long SeqBitmap::totalSwapped = 0;
 bool SeqBitmap::memFull = false;
 stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 
