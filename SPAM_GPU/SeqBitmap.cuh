@@ -86,7 +86,7 @@ public:
 		if (type == 0){
 			if (!CudaMalloc(init)){
 				cout << "This really should not happen" << endl;
-				system("pause");
+				fgetc(stdin);
 				exit(-2);
 			}
 			for (int i = 0; i < 5; i++){
@@ -94,7 +94,7 @@ public:
 				if ((error = cudaMemcpyAsync(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
 					cout << "cudaError: " << error << endl;
 					cout << "Memcpy fail in gpuMemList " << i << endl;
-					system("pause");
+					fgetc(stdin);
 					exit(-1);
 				}
 			}
@@ -107,7 +107,7 @@ public:
 			for (int i = 0; i < 5; i++){
 				if (cudaMemcpyAsync(bitmap[i], gpuMemList[i], sizeof(int)*size[i], cudaMemcpyDeviceToHost, cudaStream) != cudaSuccess){
 					cout << "Memcpy fail" << endl;
-					system("pause");
+					fgetc(stdin);
 					exit(-1);
 				}
 			}
