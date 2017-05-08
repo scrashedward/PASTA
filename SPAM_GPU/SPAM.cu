@@ -56,10 +56,10 @@ int main(int argc, char** argv){
 
 	totalFreq = 0;
 	MAX_BLOCK_NUM = 512;
-	WORK_SIZE = MAX_BLOCK_NUM * 8;
-	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
 	MAX_THREAD_NUM = 1024;
 	ADDITIONAL_MEM = 0;
+	WORK_SIZE = 1;
+	MAX_WORK_SIZE = 4;
 
 	for (int i = 3; i < argc; i+=2){
 		if (strcmp(argv[i], "-b") == 0){
@@ -78,7 +78,9 @@ int main(int argc, char** argv){
 			ADDITIONAL_MEM = atoi(argv[i + 1]);
 		}
 	}
-
+	WORK_SIZE *= MAX_BLOCK_NUM;
+	MAX_WORK_SIZE *= MAX_BLOCK_NUM;
+	
 	cudaSetDevice(0);
 
 	cudaStreamCreate(&kernelStream);
