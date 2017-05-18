@@ -132,13 +132,11 @@ public:
 		CudaMemcpy(false, debug);
 		copyTime += clock() - t1;
 		t1 = clock();
-		for (int oldBlock = 0; oldBlock < length; oldBlock += blockNum){
-			//cout << "gsrc1: " << gsrc1 << " gsrc2:" << gsrc2 << " gdst: " << gdst << " gresult:" << gresult << " length: " << length << " size: " << SeqBitmap::size[bitmapType] << " bitmaptType:" << bitmapType;
-			//cout << " type: " << type << " oldBlock: " << oldBlock << endl;
-			CudaSupportCount << < (length-oldBlock) < blockNum?(length - oldBlock):blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
-			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
-		}
+		if(length == 0 ) return;
+		CudaSupportCount << < length, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, 0);
+		cudaError_t err = cudaGetLastError();
+		if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+		
 		cudaDeviceSynchronize();
 		kernelTime += (clock() - t1);
 		t1 = clock();
@@ -151,11 +149,10 @@ public:
 		CudaMemcpy(false, true);
 		copyTime += clock() - t1;
 		t1 = clock();
-		for (int oldBlock = 0; oldBlock < length + blockNum; oldBlock += blockNum){
-			CudaSupportCountNaive << < blockNum, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, oldBlock, gNodeType);
-			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
-		}
+		CudaSupportCountNaive << < length, threadNum, sizeof(int)*threadNum >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, 0, gNodeType);
+		cudaError_t err = cudaGetLastError();
+		if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+	
 		//cudaDeviceSynchronize();
 		kernelTime += (clock() - t1);
 		t1 = clock();
