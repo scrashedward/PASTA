@@ -124,10 +124,12 @@ int main(int argc, char** argv){
 		f1[i]->iBitmap->CudaMemcpy();
 	}
 	//t1 = clock();
+	clock_t t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
 		DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
+	cpuTotal = clock() - t1;
 	cout << "cpu total: " << cpuTotal << " cpu support: " << cpuSup << endl;
 	//cout << "time taken : " << clock() - t1 << endl;
 
@@ -878,7 +880,6 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 }
 
 void DFSPruning(TreeNode* currentNode, int minSup, int *index){
-	clock_t t1 = clock();
 	SList* sList = new SList(currentNode->sListLen);
 	SList* iList = new SList(currentNode->iListLen);
 	int sLen = currentNode->sListLen;
@@ -940,8 +941,6 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index){
 		//cout << " " << sup << endl;
 		DFSPruning(tempNode, minSup, index);
 	}
-
-	cpuTotal += clock() - t1;
 	tempNode->iBitmap->Delete();
 	delete sList;
 	delete iList;
