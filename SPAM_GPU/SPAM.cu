@@ -55,8 +55,8 @@ int main(int argc, char** argv){
 	float minSupPer = atof(argv[2]);
 
 	totalFreq = 0;
-	MAX_BLOCK_NUM = 512;
-	MAX_THREAD_NUM = 1024;
+	MAX_BLOCK_NUM = 2048;
+	MAX_THREAD_NUM = 128;
 	ADDITIONAL_MEM = 0;
 	WORK_SIZE = 1;
 	MAX_WORK_SIZE = 4;
