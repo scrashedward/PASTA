@@ -354,7 +354,8 @@ int getBitmapType(int size){
 }
 
 void FindSeqPattern(Fstack* fStack, int minSup, int * index){
-	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
+	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0;
+	float kernelTime = 0, tempTime;
 	tmining_start = clock();
 	cudaError_t cudaError;
 	stack<TreeNode*> currentStack[2];
@@ -366,7 +367,9 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	int iListStart;
 	short tag = 0;
 	bool running = false, hasResult = false;
-//	size_t totalMem, freeMem;
+	cudaEvent_t eStart, eStop;
+	cudaEventCreate(&eStart);
+	cudaEventCreate(&eStop);
 	int *sResult[2], *iResult[2];
 	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
@@ -529,7 +532,10 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		}
 		prepare += clock() - t1;
 		if (running){
-			cudaStreamSynchronize(kernelStream);
+			//cudaStreamSynchronize(kernelStream);
+			cudaEventSynchronize(eStop);
+			cudaEventElapsedTime(&tempTime, eStart, eStop);
+			kernelTime += tempTime;
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
 					if (sWorkSize > 0){
@@ -545,6 +551,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 
 
 		running = true;
+		cudaEventRecord(eStart);
 		for (int i = 0; i < 5; i++){
 			if (SeqBitmap::size[i] > 0){
 				if (sWorkSize > 0){
@@ -555,9 +562,12 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 				}
 			}
 		}
+		cudaEventRecord(eStop);
 		if (hasResult){
 			cudaStreamSynchronize(copyStream);
+			t1 = clock();
 			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+			post += clock() - t1;
 		}
 		//cout << "Mem used: currentstack: " << currentStack[tag].size() << " iWorkSize: " << iWorkSize[tag] << " sWorkSize: " << sWorkSize[tag] << " mem satck size: " <<  SeqBitmap::gpuMemPool.size() <<  endl;
 		tag ^= 1;
@@ -569,9 +579,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	delete[] iResultNodes[1];
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
-	cout << "total time for kernel execution:" << total << endl;
-	cout << "total time for inner kernel execution:" << GPUList::kernelTime << endl;
-	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
+	cout << "total time for support counting" << kernelTime << endl;
 	cout << "total time for data preparing:" << prepare << endl;
 	cout << "total time for result processing:" << post << endl;
 	//cout << "total time for H2Dcopy: " << GPUList::H2DTime << endl;
