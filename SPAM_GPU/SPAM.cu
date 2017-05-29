@@ -487,10 +487,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				fStack->pop();
 			}
 		}
-		cout << "sSize: " << sWorkSize[tag] << " iSize: " << iWorkSize[tag] << endl;
-		cudaDeviceSynchronize();
-		PrintMemInfo();
-		fgetc(stdin);
 		prepare += clock() - t1;
 		if (SeqBitmap::memPos){
 
