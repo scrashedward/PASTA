@@ -100,8 +100,6 @@ int main(int argc, char** argv){
 	//}
 
 	cudaSetDevice(0);
-
-	SeqBitmap::memPos = false;
 	TreeNode** f1 = NULL;
 	int *index = NULL;
 	stack<TreeNode*>* fStack = new stack<TreeNode*>;
@@ -119,6 +117,7 @@ int main(int argc, char** argv){
 		f1[i]->sListLen = dbInfo.f1Size;
 		f1[i]->iListLen = dbInfo.f1Size - i - 1;
 		f1[i]->iListStart = i + 1;
+		f1[i]->iBitmap->CudaMalloc();
 		f1[i]->iBitmap->CudaMemcpy();
 	}
 	//t1 = clock();
@@ -382,8 +381,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	int sListLen;
 	int iListLen;
 	int iListStart;
-	//int *sResult = new int[MAX_WORK_SIZE];
-	//int * iResult = new int[MAX_WORK_SIZE];
 	int *sResult, *iResult;
 	cudaHostAlloc(&sResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
@@ -414,7 +411,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	while (!(fStack->empty())){
 		//PrintMemInfo();
 		t1 = clock();
-		//if(OUTPUT)cout << "fStack size: " << fStack->size() << endl;
 		sWorkSize = 0;
 		iWorkSize = 0;
 
@@ -433,72 +429,60 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			exit(-1);
 		}
 		while (max(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
-			if (SeqBitmap::memPos){ 
-				
-			}
-			else{
-				currentNodePtr = fStack->top();
-				sListLen = currentNodePtr->sListLen;
-				iListLen = currentNodePtr->iListLen;
-				iListStart = currentNodePtr->iListStart;
-				if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
-				for (int j = 0; j < sListLen; j++){
-					TreeNode* tempNode = new TreeNode;
-					tempNode->iBitmap = new SeqBitmap();
-					tempNode->iBitmap->CudaMalloc();
-					tempNode->seq = currentNodePtr->seq;
-					sResultNodes[sWorkSize] = tempNode;
+			currentNodePtr = fStack->top();
+			sListLen = currentNodePtr->sListLen;
+			iListLen = currentNodePtr->iListLen;
+			iListStart = currentNodePtr->iListStart;
+			if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
+			for (int j = 0; j < sListLen; j++){
+				TreeNode* tempNode = new TreeNode;
+				tempNode->iBitmap = new SeqBitmap();
+				tempNode->iBitmap->CudaMalloc();
+				tempNode->seq = currentNodePtr->seq;
+				sResultNodes[sWorkSize] = tempNode;
 
-					sWorkSize++;
-					for (int i = 0; i < 5; i++){
-						if (SeqBitmap::size[i] != 0){
-							sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
-						}
+				sWorkSize++;
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] != 0){
+						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
-				for (int j = 0; j < iListLen; j++){
-					TreeNode* tempNode = new TreeNode;
-					tempNode->iBitmap = new SeqBitmap();
-					tempNode->iBitmap->CudaMalloc();
-					tempNode->seq = currentNodePtr->seq;
-					//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
-					iResultNodes[iWorkSize] = tempNode;
-					iWorkSize++;
-					for (int i = 0; i < 5; i++){
-						if (SeqBitmap::size[i] != 0){
-							igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
-						}
-					}
-				}
-				currentStack.push(currentNodePtr);
-				fStack->pop();
 			}
+			for (int j = 0; j < iListLen; j++){
+				TreeNode* tempNode = new TreeNode;
+				tempNode->iBitmap = new SeqBitmap();
+				tempNode->iBitmap->CudaMalloc();
+				tempNode->seq = currentNodePtr->seq;
+				iResultNodes[iWorkSize] = tempNode;
+				iWorkSize++;
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] != 0){
+						igList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+					}
+				}
+			}
+			currentStack.push(currentNodePtr);
+			fStack->pop();
 		}
 		prepare += clock() - t1;
-		if (SeqBitmap::memPos){
-
-		}
-		else{
-			//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
 			
-			t1 = clock();
+		t1 = clock();
 
-			for (int i = 0; i < 5; i++){
-				if (SeqBitmap::size[i] > 0){
-					if (sWorkSize > 0){
-						sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
-					}
-					if (iWorkSize > 0){
-						igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
-					}
+		for (int i = 0; i < 5; i++){
+			if (SeqBitmap::size[i] > 0){
+				if (sWorkSize > 0){
+					sgList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true);
+				}
+				if (iWorkSize > 0){
+					igList[i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false);
 				}
 			}
-
-			total += clock() - t1;
-			t1 = clock();
-			ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, index);
-			post += clock() - t1;
 		}
+
+		total += clock() - t1;
+		t1 = clock();
+		ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, index);
+		post += clock() - t1;
 	}
 	delete [] sResultNodes;
 	delete[] iResultNodes;
@@ -529,7 +513,6 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 	while (!currentStack.empty()){
 		int sListSize = 0;
 		int iListSize = 0;
-		//cout << "stackSize:" << currentStack.size() << endl;
 		TreeNode* currentNodePtr = currentStack.top();
 		SList* sList = new SList(currentNodePtr->sListLen);
 		SList* iList = new SList(currentNodePtr->iListLen);
@@ -685,180 +668,170 @@ void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
 		}
 		
 		while (workSize < WORK_SIZE && !(fStack->empty())){
-			if (SeqBitmap::memPos){
+			currentNodePtr = fStack->top();
+			sListLen = currentNodePtr->sListLen;
+			iListLen = currentNodePtr->iListLen;
+			iListStart = currentNodePtr->iListStart;
+			if (workSize + sListLen + iListLen > MAX_WORK_SIZE) break;
 
-			}
-			else{
-				currentNodePtr = fStack->top();
-				sListLen = currentNodePtr->sListLen;
-				iListLen = currentNodePtr->iListLen;
-				iListStart = currentNodePtr->iListStart;
-				if (workSize + sListLen + iListLen > MAX_WORK_SIZE) break;
+			for (int j = 0; j < sListLen; j++){
+				TreeNode* tempNode = new TreeNode;
+				tempNode->iBitmap = new SeqBitmap();
+				tempNode->iBitmap->CudaMalloc();
+				tempNode->seq = currentNodePtr->seq;
+				resultNodes[workSize] = tempNode;
+				nodeType[workSize] = false;
 
-				for (int j = 0; j < sListLen; j++){
-					TreeNode* tempNode = new TreeNode;
-					tempNode->iBitmap = new SeqBitmap();
-					tempNode->iBitmap->CudaMalloc();
-					tempNode->seq = currentNodePtr->seq;
-					resultNodes[workSize] = tempNode;
-					nodeType[workSize] = false;
-
-					workSize++;
-					for (int i = 0; i < 5; i++){
-						if (SeqBitmap::size[i] != 0){
-							gList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
-						}
+				workSize++;
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] != 0){
+						gList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
-				for (int j = 0; j < iListLen; j++){
-					TreeNode* tempNode = new TreeNode;
-					tempNode->iBitmap = new SeqBitmap();
-					tempNode->iBitmap->CudaMalloc();
-					tempNode->seq = currentNodePtr->seq;
-					//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
-					resultNodes[workSize] = tempNode;
-					nodeType[workSize] = true;
-					workSize++;
-					for (int i = 0; i < 5; i++){
-						if (SeqBitmap::size[i] != 0){
-							gList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
-						}
+			}
+			for (int j = 0; j < iListLen; j++){
+				TreeNode* tempNode = new TreeNode;
+				tempNode->iBitmap = new SeqBitmap();
+				tempNode->iBitmap->CudaMalloc();
+				tempNode->seq = currentNodePtr->seq;
+				//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
+				resultNodes[workSize] = tempNode;
+				nodeType[workSize] = true;
+				workSize++;
+				for (int i = 0; i < 5; i++){
+					if (SeqBitmap::size[i] != 0){
+						gList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->iList->list[j + iListStart]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
-				currentStack.push(currentNodePtr);
-				fStack->pop();
 			}
+			currentStack.push(currentNodePtr);
+			fStack->pop();
 		}
 		prepare += clock() - t1;
-		if (SeqBitmap::memPos){
+		//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
 
+		t1 = clock();
+
+		for (int i = 0; i < 5; i++){
+			if (SeqBitmap::size[i] > 0){
+				if (workSize > 0){
+					gList[i].SupportCountingNaive(MAX_BLOCK_NUM, MAX_THREAD_NUM, i);
+				}
+			}
 		}
-		else{
-			//cout << "After add to tail: igList[0].src1[112]:" << igList[0].src1[112] << endl;
 
-			t1 = clock();
-
-			for (int i = 0; i < 5; i++){
-				if (SeqBitmap::size[i] > 0){
-					if (workSize > 0){
-						gList[i].SupportCountingNaive(MAX_BLOCK_NUM, MAX_THREAD_NUM, i);
-					}
-				}
+		total += clock() - t1;
+		t1 = clock();
+		for (int i = 0; i < 5; i++){
+			if (SeqBitmap::size[i] > 0){
+				gList[i].clear();
 			}
-
-			total += clock() - t1;
-			t1 = clock();
-			for (int i = 0; i < 5; i++){
-				if (SeqBitmap::size[i] > 0){
-					gList[i].clear();
-				}
-			}
-			int pivot = workSize;
-			while (!currentStack.empty()){
-				int sListSize = 0;
-				int iListSize = 0;
-				TreeNode* currentNodePtr = currentStack.top();
-				SList* sList = new SList(currentNodePtr->sListLen);
-				SList* iList = new SList(currentNodePtr->iListLen);
-				for (int i = currentNodePtr->iListStart, j = 0; j < currentNodePtr->iListLen; j++){
-					if (result[pivot - currentNodePtr->iListLen + j] >= minSup){
-						iList->list[iListSize++] = currentNodePtr->iList->list[i + j];
-					}
-				}
-				for (int i = 0; i < currentNodePtr->sListLen; i++){
-					if (result[pivot - currentNodePtr->sListLen - currentNodePtr->iListLen + i] >= minSup){
-						sList->list[sListSize++] = currentNodePtr->sList->list[i];
-					}
-				}
-				int tmp = 0;
-				int iListStart = currentNodePtr->iListStart;
-				for (int i = currentNodePtr->iListLen - 1; i >= 0; i--){
-					pivot--;
-					if (result[pivot] >= minSup){
-						resultNodes[pivot]->sList = sList->get();
-						resultNodes[pivot]->sListLen = sListSize;
-						resultNodes[pivot]->iList = iList->get();
-						resultNodes[pivot]->iListLen = tmp;
-						resultNodes[pivot]->iListStart = iListSize - tmp;
-						resultNodes[pivot]->support = result[pivot];
-						resultNodes[pivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
-						tmp++;
-						fStack->push(resultNodes[pivot]);
-						totalFreq++;
-						if(OUTPUT){
-							vector<int> temp = resultNodes[pivot]->seq;
-							for (int i = 0; i < temp.size(); i++){
-								if (temp[i] != -1){
-									cout << temp[i] << " ";
-								}
-								else{
-									cout << ", ";
-								}
-							}
-							cout << result[pivot];
-							cout << endl;
-						}
-					}
-					else{
-						resultNodes[pivot]->iBitmap->CudaFree();
-						delete resultNodes[pivot]->iBitmap;
-						delete resultNodes[pivot];
-					}
-				}
-				tmp = 0;
-				for (int i = currentNodePtr->sListLen - 1; i >= 0; i--){
-					pivot--;
-					if (result[pivot] >= minSup){
-						resultNodes[pivot]->sList = sList->get();
-						resultNodes[pivot]->iList = sList->get();
-						resultNodes[pivot]->sListLen = sListSize;
-						resultNodes[pivot]->iListLen = tmp;
-						resultNodes[pivot]->iListStart = sListSize - tmp;
-						if (resultNodes[pivot]->iListStart < 0){
-							cout << "iListStart < 0" << endl;
-							system("pause");
-						}
-						resultNodes[pivot]->support = result[pivot];
-						resultNodes[pivot]->seq.push_back(-1);
-						resultNodes[pivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
-						tmp++;
-						fStack->push(resultNodes[pivot]);
-						totalFreq++;
-						if(OUTPUT){
-							vector<int> temp = resultNodes[pivot]->seq;
-							for (int i = 0; i < temp.size(); i++){
-								if (temp[i] != -1){
-									cout << temp[i] << " ";
-								}
-								else{
-									cout << ", ";
-								}
-							}
-							cout << result[pivot];
-							cout << endl;
-						}
-					}
-					else{
-						resultNodes[pivot]->iBitmap->CudaFree();
-						delete resultNodes[pivot]->iBitmap;
-						delete resultNodes[pivot];
-					}
-				}
-				if (currentNodePtr->seq.size() != 1){
-					currentNodePtr->iBitmap->CudaFree();
-					if (currentNodePtr->sList->free() == 0){
-						delete currentNodePtr->sList;
-					}
-					if (currentNodePtr->iList->free() == 0){
-						delete currentNodePtr->iList;
-					}
-					delete currentNodePtr->iBitmap;
-					delete currentNodePtr;
-				}
-				currentStack.pop();
-			}
-			post += clock() - t1;
 		}
+		int pivot = workSize;
+		while (!currentStack.empty()){
+			int sListSize = 0;
+			int iListSize = 0;
+			TreeNode* currentNodePtr = currentStack.top();
+			SList* sList = new SList(currentNodePtr->sListLen);
+			SList* iList = new SList(currentNodePtr->iListLen);
+			for (int i = currentNodePtr->iListStart, j = 0; j < currentNodePtr->iListLen; j++){
+				if (result[pivot - currentNodePtr->iListLen + j] >= minSup){
+					iList->list[iListSize++] = currentNodePtr->iList->list[i + j];
+				}
+			}
+			for (int i = 0; i < currentNodePtr->sListLen; i++){
+				if (result[pivot - currentNodePtr->sListLen - currentNodePtr->iListLen + i] >= minSup){
+					sList->list[sListSize++] = currentNodePtr->sList->list[i];
+				}
+			}
+			int tmp = 0;
+			int iListStart = currentNodePtr->iListStart;
+			for (int i = currentNodePtr->iListLen - 1; i >= 0; i--){
+				pivot--;
+				if (result[pivot] >= minSup){
+					resultNodes[pivot]->sList = sList->get();
+					resultNodes[pivot]->sListLen = sListSize;
+					resultNodes[pivot]->iList = iList->get();
+					resultNodes[pivot]->iListLen = tmp;
+					resultNodes[pivot]->iListStart = iListSize - tmp;
+					resultNodes[pivot]->support = result[pivot];
+					resultNodes[pivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
+					tmp++;
+					fStack->push(resultNodes[pivot]);
+					totalFreq++;
+					if(OUTPUT){
+						vector<int> temp = resultNodes[pivot]->seq;
+						for (int i = 0; i < temp.size(); i++){
+							if (temp[i] != -1){
+								cout << temp[i] << " ";
+							}
+							else{
+								cout << ", ";
+							}
+						}
+						cout << result[pivot];
+						cout << endl;
+					}
+				}
+				else{
+					resultNodes[pivot]->iBitmap->CudaFree();
+					delete resultNodes[pivot]->iBitmap;
+					delete resultNodes[pivot];
+				}
+			}
+			tmp = 0;
+			for (int i = currentNodePtr->sListLen - 1; i >= 0; i--){
+				pivot--;
+				if (result[pivot] >= minSup){
+					resultNodes[pivot]->sList = sList->get();
+					resultNodes[pivot]->iList = sList->get();
+					resultNodes[pivot]->sListLen = sListSize;
+					resultNodes[pivot]->iListLen = tmp;
+					resultNodes[pivot]->iListStart = sListSize - tmp;
+					if (resultNodes[pivot]->iListStart < 0){
+						cout << "iListStart < 0" << endl;
+						system("pause");
+					}
+					resultNodes[pivot]->support = result[pivot];
+					resultNodes[pivot]->seq.push_back(-1);
+					resultNodes[pivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
+					tmp++;
+					fStack->push(resultNodes[pivot]);
+					totalFreq++;
+					if(OUTPUT){
+						vector<int> temp = resultNodes[pivot]->seq;
+						for (int i = 0; i < temp.size(); i++){
+							if (temp[i] != -1){
+								cout << temp[i] << " ";
+							}
+							else{
+								cout << ", ";
+							}
+						}
+						cout << result[pivot];
+						cout << endl;
+					}
+				}
+				else{
+					resultNodes[pivot]->iBitmap->CudaFree();
+					delete resultNodes[pivot]->iBitmap;
+					delete resultNodes[pivot];
+				}
+			}
+			if (currentNodePtr->seq.size() != 1){
+				currentNodePtr->iBitmap->CudaFree();
+				if (currentNodePtr->sList->free() == 0){
+					delete currentNodePtr->sList;
+				}
+				if (currentNodePtr->iList->free() == 0){
+					delete currentNodePtr->iList;
+				}
+				delete currentNodePtr->iBitmap;
+				delete currentNodePtr;
+			}
+			currentStack.pop();
+		}
+		post += clock() - t1;
 	}
 	delete[] resultNodes;
 	tmining_end = clock();
