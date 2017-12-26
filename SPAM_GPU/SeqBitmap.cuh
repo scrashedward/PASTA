@@ -21,6 +21,8 @@ const unsigned int Bit32Table[32] =
 	8, 4, 2, 1
 };
 
+extern __host__ __device__ int SBitmap(unsigned int n, int bitmapType);
+
 class SeqBitmap{
 public:
 	int * bitmap[5];
@@ -30,7 +32,7 @@ public:
 	static int sizeGPU[5];
 	static int sizeSum;
 	static stack<int*> gpuMemPool;
-	static int SBitmapTable[4][65536];
+	static unsigned int SBitmapTable[4][65536];
 
 	int *gpuMemList[5];
 	int *gpuSMemList[5];
@@ -198,7 +200,12 @@ public:
 
 	static void buildTable()
 	{
-		
+		for (int i = 0; i < 4; ++i) {
+			cout << "i = " << i << endl;
+			for (int j = 0; j < 65536; ++j) {
+				SBitmapTable[i][j] = SBitmap(j, i);
+			}
+		}
 	}
 };
 
@@ -206,6 +213,7 @@ int SeqBitmap::sizeSum = 0;
 int SeqBitmap::length[5] = {0};
 int SeqBitmap::size[5] = { 0 };
 int SeqBitmap::sizeGPU[5] = { 0 };
+unsigned int SeqBitmap::SBitmapTable[4][65536] = { 0 };
 stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 
 #endif

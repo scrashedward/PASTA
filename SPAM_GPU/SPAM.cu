@@ -13,6 +13,7 @@
 #include <queue>
 #include "GPUList.cuh"
 #include <time.h>
+#include <bitset>
 
 using namespace std;
 struct DbInfo{
@@ -98,6 +99,10 @@ int main(int argc, char** argv){
 	//	cudaGetDeviceProperties(&deviceProp, i);
 	//	cout << "device " << i << " name: " << deviceProp.name << endl;
 	//}
+
+	clock_t t1 = clock();
+	SeqBitmap::buildTable();
+	cout << clock() - t1 << endl;
 
 	cudaSetDevice(0);
 	TreeNode** f1 = NULL;
@@ -485,7 +490,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		post += clock() - t1;
 	}
 	delete [] sResultNodes;
-	delete[] iResultNodes;
+	delete [] iResultNodes;
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
 	cout << "total time for kernel execution:" << total << endl;
