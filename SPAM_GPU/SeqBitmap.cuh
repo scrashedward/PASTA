@@ -24,23 +24,27 @@ const unsigned int Bit32Table[32] =
 class SeqBitmap{
 public:
 	int * bitmap[5];
-	int * sBitmap[5];
+	int * sBitmapList[5];
 	static int length[5];
 	static int size[5];
 	static int sizeGPU[5];
 	static int sizeSum;
 	static stack<int*> gpuMemPool;
+	static int SBitmapTable[4][65536];
 
 	int *gpuMemList[5];
 	int *gpuSMemList[5];
-	int *gpuMem;
-	int *gpuSMem;
+
 	void Malloc(){
-		for (int i = 0; i < 5; i++){
-			bitmap[i] = new int[size[i]];
-			memset(bitmap[i], 0, sizeof(int)*size[i]);
+		bitmap[0] = new int[sizeSum];
+		memset(bitmap[0], 0, sizeof(int)* sizeSum);
+		int sum = 0;
+		for (int i = 0; i < 4; i++){
+			sum += size[i];
+			bitmap[i + 1] = (bitmap[0] + sum);
 		}
 	}
+
 	void Delete(){
 		for (auto b : bitmap){
 			delete[] b;
@@ -49,17 +53,18 @@ public:
 
 	void SBitmapMalloc()
 	{
-		for (int i = 0; i < 5; i++) {
-			sBitmap[i] = new int[size[i]];
-			memset(sBitmap[i], 0, sizeof(int)*size[i]);
+		sBitmapList[0] = new int[sizeSum];
+		memset(sBitmapList[0], 0, sizeof(int)* sizeSum);
+		int sum = 0;
+		for (int i = 0; i < 4; i++){
+			sum += size[i];
+			sBitmapList[i + 1] = (sBitmapList[0] + sum);
 		}
 	}
 
 	void SBitmapDelete()
 	{
-		for (auto b : sBitmap) {
-			delete[] b;
-		}
+		delete sBitmapList[0];
 	}
 
 	static void SetLength(int l4, int l8, int l16, int l32, int l64){
@@ -80,20 +85,31 @@ public:
 			sizeSum += i;
 		}
 	}
-	void CudaMemcpy(){
-		for (int i = 0; i < 5; i++){
-			cudaError_t error;
-			if ((error = cudaMemcpy(gpuMemList[i], bitmap[i], sizeof(int)*size[i], cudaMemcpyHostToDevice)) != cudaSuccess){
-				cout << "cudaError: " <<  error << endl;
-				cout << "Memcpy fail in gpuMemList " << i << endl;
+
+	void CudaMemcpy(bool deviceToHost = false){
+		cudaError_t error;
+		if (!deviceToHost) {
+			if ((error = cudaMemcpy(gpuMemList[0], bitmap[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice)) != cudaSuccess){
+				cout << "cudaError: " << error << endl;
+				cout << "Memcpy fail in gpuMemList hostToDevice" << endl;
+				system("pause");
+				exit(-1);
+			}
+		}
+		else {
+			if ((error = cudaMemcpy(bitmap[0], gpuMemList[0], sizeof(int)*sizeSum, cudaMemcpyDeviceToHost)) != cudaSuccess){
+				cout << "cudaError: " << error << endl;
+				cout << "Memcpy fail in gpuMemList deviceToHost" << endl;
 				system("pause");
 				exit(-1);
 			}
 		}
 	}
+
 	void CudaFree(){
 		gpuMemPool.push(gpuMemList[0]);
 	}
+
 	void SetBit(int bitmapType, int number, int i){
 		int index;
 		switch (bitmapType){
@@ -170,12 +186,20 @@ public:
 		gpuMemPool.push(gpuSMemList[0]);
 	}
 
-	void SBitmapCudaMemcpy(bool deviceToHost) {
-		if (deviceToHost) {
-			
+	void SBitmapCudaMemcpy() {
+		cudaError_t error = cudaMemcpy(sBitmapList[0], gpuSMemList[0], sizeof(int) * sizeSum, cudaMemcpyHostToDevice);
+		if (error != cudaSuccess) {
+			cout << error << endl;
+			cout << "Memcpy fail for sbitmap" << endl;
+			system("pause");
+			exit(-1);
 		}
 	}
 
+	static void buildTable()
+	{
+		
+	}
 };
 
 int SeqBitmap::sizeSum = 0;
