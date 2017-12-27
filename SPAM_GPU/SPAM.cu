@@ -557,6 +557,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iBitmap->SBitmapMalloc();
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
 				iResultNodes[iPivot]->iBitmap->CudaMemcpy(true);
+				iResultNodes[iPivot]->iBitmap->SBitmapConversion();
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMemcpy();
 				cudaDeviceSynchronize();
 				tmp++;
@@ -598,6 +599,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->iBitmap->SBitmapMalloc();
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
 				sResultNodes[sPivot]->iBitmap->CudaMemcpy(true);
+				sResultNodes[sPivot]->iBitmap->SBitmapConversion();
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMemcpy();
 				cudaDeviceSynchronize();
 				tmp++;
