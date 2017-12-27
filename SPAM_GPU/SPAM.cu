@@ -91,18 +91,24 @@ int main(int argc, char** argv){
 	cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
 	cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
 
-	//int DeviceCount;
-	//cudaGetDeviceCount(&DeviceCount);
-	//cout << "Detect " << DeviceCount << " cuda devices" << endl;
-	//for (int i = 0; i < DeviceCount; i++){
-	//	cudaDeviceProp deviceProp;
-	//	cudaGetDeviceProperties(&deviceProp, i);
-	//	cout << "device " << i << " name: " << deviceProp.name << endl;
-	//}
-
 	clock_t t1 = clock();
 	SeqBitmap::buildTable();
 	cout << clock() - t1 << endl;
+
+	//SeqBitmap::SetLength(8, 4, 2, 1, 1);
+
+	//SeqBitmap map;
+	//map.Malloc();
+	//map.SBitmapMalloc();
+	//map.bitmapList[0][0] = 0b01001000011000011000000000101110;
+	//map.bitmapList[1][0] = 0b01010011000011111000000000001010;
+	//map.bitmapList[2][0] = 0b01111100000110100000011111011011;
+	//map.bitmapList[3][0] = 0b00111111111111101010101010101000;
+	//map.bitmapList[4][0] = 0;
+	//map.bitmapList[4][1] = 0b00111111111111101010101010101000;
+
+	//map.SBitmapMalloc();
+	//map.SBitmapConversion();
 
 	cudaSetDevice(0);
 	TreeNode** f1 = NULL;
@@ -575,10 +581,6 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->sListLen = sListSize;
 				sResultNodes[sPivot]->iListLen = tmp;
 				sResultNodes[sPivot]->iListStart = sListSize - tmp;
-				if (sResultNodes[sPivot]->iListStart < 0){
-					cout << "iListStart < 0" << endl;
-					system("pause");
-				}
 				sResultNodes[sPivot]->support = sResult[sPivot];
 				sResultNodes[sPivot]->seq.push_back(-1);
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
@@ -929,9 +931,9 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 		for (int i = 0; i < 5; i++){
 			if (SeqBitmap::size[i] > 0){
 				for (int j = 0; j < SeqBitmap::size[i]; j++){
-					temp = SBitmap(s1->bitmap[i][j], i) & s2->bitmap[i][j];
+					temp = SBitmap(s1->bitmapList[i][j], i) & s2->bitmapList[i][j];
 					support += SupportCount(temp, i);
-					dst->bitmap[i][j] = temp;
+					dst->bitmapList[i][j] = temp;
 				}
 			}
 		}
@@ -940,9 +942,9 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 		for (int i = 0; i < 5; i++){
 			if (SeqBitmap::size[i] > 0){
 				for (int j = 0; j < SeqBitmap::size[i]; j++){
-					temp = s1->bitmap[i][j] & s2->bitmap[i][j];
+					temp = s1->bitmapList[i][j] & s2->bitmapList[i][j];
 					support += SupportCount(temp, i);
-					dst->bitmap[i][j] = temp;
+					dst->bitmapList[i][j] = temp;
 				}
 			}
 		}

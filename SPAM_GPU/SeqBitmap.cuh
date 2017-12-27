@@ -25,30 +25,29 @@ extern __host__ __device__ int SBitmap(unsigned int n, int bitmapType);
 
 class SeqBitmap{
 public:
-	int * bitmap[5];
+	int * bitmapList[5];
 	int * sBitmapList[5];
 	static int length[5];
 	static int size[5];
-	static int sizeGPU[5];
 	static int sizeSum;
 	static stack<int*> gpuMemPool;
-	static unsigned int SBitmapTable[4][65536];
+	static uint16_t SBitmapTable[3][65536];
 
 	int *gpuMemList[5];
 	int *gpuSMemList[5];
 
 	void Malloc(){
-		bitmap[0] = new int[sizeSum];
-		memset(bitmap[0], 0, sizeof(int)* sizeSum);
+		bitmapList[0] = new int[sizeSum];
+		memset(bitmapList[0], 0, sizeof(int)* sizeSum);
 		int sum = 0;
 		for (int i = 0; i < 4; i++){
 			sum += size[i];
-			bitmap[i + 1] = (bitmap[0] + sum);
+			bitmapList[i + 1] = (bitmapList[0] + sum);
 		}
 	}
 
 	void Delete(){
-		for (auto b : bitmap){
+		for (auto b : bitmapList){
 			delete[] b;
 		}
 	}
@@ -80,9 +79,6 @@ public:
 		size[2] = length[2] % 2 == 0 ? (length[2] / 2) : ((length[2] / 2) + 1);
 		size[3] = length[3];
 		size[4] = length[4] * 2;
-		for (int i = 0; i < 5; i++){
-			sizeGPU[i] = (size[i] % 4 == 0) ? size[i] : ((size[i] + 4) - size[i] % 4);
-		}
 		for (auto i : size){
 			sizeSum += i;
 		}
@@ -91,7 +87,7 @@ public:
 	void CudaMemcpy(bool deviceToHost = false){
 		cudaError_t error;
 		if (!deviceToHost) {
-			if ((error = cudaMemcpy(gpuMemList[0], bitmap[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice)) != cudaSuccess){
+			if ((error = cudaMemcpy(gpuMemList[0], bitmapList[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice)) != cudaSuccess){
 				cout << "cudaError: " << error << endl;
 				cout << "Memcpy fail in gpuMemList hostToDevice" << endl;
 				system("pause");
@@ -99,7 +95,7 @@ public:
 			}
 		}
 		else {
-			if ((error = cudaMemcpy(bitmap[0], gpuMemList[0], sizeof(int)*sizeSum, cudaMemcpyDeviceToHost)) != cudaSuccess){
+			if ((error = cudaMemcpy(bitmapList[0], gpuMemList[0], sizeof(int)*sizeSum, cudaMemcpyDeviceToHost)) != cudaSuccess){
 				cout << "cudaError: " << error << endl;
 				cout << "Memcpy fail in gpuMemList deviceToHost" << endl;
 				system("pause");
@@ -117,23 +113,23 @@ public:
 		switch (bitmapType){
 		case 0:
 			index = number / 8;
-			bitmap[bitmapType][index] |= Bit32Table[(number % 8) * 4 + i];
+			bitmapList[bitmapType][index] |= Bit32Table[(number % 8) * 4 + i];
 			break;
 		case 1:
 			index = number / 4;
-			bitmap[bitmapType][index] |= Bit32Table[(number % 4) * 8 + i];
+			bitmapList[bitmapType][index] |= Bit32Table[(number % 4) * 8 + i];
 			break;
 		case 2:
 			index = number / 2;
-			bitmap[bitmapType][index] |= Bit32Table[(number % 2) * 16 + i];
+			bitmapList[bitmapType][index] |= Bit32Table[(number % 2) * 16 + i];
 			break;
 		case 3:
 			index = number;
-			bitmap[bitmapType][index] |= Bit32Table[i];
+			bitmapList[bitmapType][index] |= Bit32Table[i];
 			break;
 		case 4:
 			index = number * 2 + (i > 31 ? 1 : 0);
-			bitmap[bitmapType][index] |= Bit32Table[i % 32];
+			bitmapList[bitmapType][index] |= Bit32Table[i % 32];
 			break;
 		default:
 			cout << "This should not happen" << endl;	
@@ -198,12 +194,62 @@ public:
 		}
 	}
 
+	void SBitmapConversion() {
+		uint16_t *converted;
+		uint16_t *target;
+		for (int i = 0; i < 3; ++i)
+		{
+			converted = (uint16_t*)bitmapList[i];
+			target = (uint16_t*)sBitmapList[i];
+			for (int j = 0; j < size[i] * 2; ++j)
+			{
+				target[j] = SBitmapTable[i][converted[j]];
+			}
+		}
+
+		converted = (uint16_t*)bitmapList[3];
+		target = (uint16_t*)sBitmapList[3];
+		for (int i = 0; i < size[3] * 2; i += 2) {
+			if (converted[i + 1]) {
+				target[i + 1] = SBitmapTable[2][converted[i + 1]];
+				target[i] = 0xFFFF;
+			}
+			else {
+				target[i] = SBitmapTable[2][converted[i]];
+			}
+		}
+
+		converted = (uint16_t*)bitmapList[4];
+		target = (uint16_t*)sBitmapList[4];
+		for (int i = 0; i < size[4] * 4; i += 4) {
+			if (converted[i + 1]) {
+				target[i + 1] = SBitmapTable[2][converted[i + 1]];
+				target[i] = target[i + 2] = target[i + 3] = 0xFFFF;
+			}
+			else if (converted[i])
+			{
+				target[i] = SBitmapTable[2][converted[i]];
+				target[i + 2] = target[i + 3] = 0xFFFF;
+			}
+			else if (converted[i + 3])
+			{
+				target[i + 3] = SBitmapTable[2][converted[i + 3]];
+				target[i + 2] = 0xFFFF;
+			}
+			else if (converted[i + 2])
+			{
+				target[i + 2] = SBitmapTable[2][converted[i + 2]];
+			}
+		}
+
+
+	}
+
 	static void buildTable()
 	{
-		for (int i = 0; i < 4; ++i) {
-			cout << "i = " << i << endl;
+		for (int i = 0; i < 3; ++i) {
 			for (int j = 0; j < 65536; ++j) {
-				SBitmapTable[i][j] = SBitmap(j, i);
+				SBitmapTable[i][j] = (uint16_t) SBitmap(j, i);
 			}
 		}
 	}
@@ -212,8 +258,7 @@ public:
 int SeqBitmap::sizeSum = 0;
 int SeqBitmap::length[5] = {0};
 int SeqBitmap::size[5] = { 0 };
-int SeqBitmap::sizeGPU[5] = { 0 };
-unsigned int SeqBitmap::SBitmapTable[4][65536] = { 0 };
+uint16_t SeqBitmap::SBitmapTable[3][65536] = { 0 };
 stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 
 #endif
