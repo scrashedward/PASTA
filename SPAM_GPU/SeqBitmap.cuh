@@ -47,9 +47,7 @@ public:
 	}
 
 	void Delete(){
-		for (auto b : bitmapList){
-			delete[] b;
-		}
+		delete [] bitmapList[0];
 	}
 
 	void SBitmapMalloc()
@@ -65,7 +63,7 @@ public:
 
 	void SBitmapDelete()
 	{
-		delete sBitmapList[0];
+		delete [] sBitmapList[0];
 	}
 
 	static void SetLength(int l4, int l8, int l16, int l32, int l64){
@@ -165,7 +163,7 @@ public:
 			gpuMemPool.pop();
 		}
 		else {
-			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int) * sizeSum);
+			cudaError error = cudaMalloc(&gpuSMemList[0], sizeof(int) * sizeSum);
 			if (error != cudaSuccess) {
 				cout << error << endl;
 				cout << "MemAlloc fail for sbitmap" << endl;
@@ -185,7 +183,7 @@ public:
 	}
 
 	void SBitmapCudaMemcpy() {
-		cudaError_t error = cudaMemcpy(sBitmapList[0], gpuSMemList[0], sizeof(int) * sizeSum, cudaMemcpyHostToDevice);
+		cudaError_t error = cudaMemcpy(gpuSMemList[0], sBitmapList[0], sizeof(int) * sizeSum, cudaMemcpyHostToDevice);
 		if (error != cudaSuccess) {
 			cout << error << endl;
 			cout << "Memcpy fail for sbitmap" << endl;

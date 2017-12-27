@@ -549,6 +549,12 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iListStart = iListSize - tmp;
 				iResultNodes[iPivot]->support = iResult[iPivot];
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
+				iResultNodes[iPivot]->iBitmap->Malloc();
+				iResultNodes[iPivot]->iBitmap->SBitmapMalloc();
+				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
+				iResultNodes[iPivot]->iBitmap->CudaMemcpy(true);
+				iResultNodes[iPivot]->iBitmap->SBitmapCudaMemcpy();
+				cudaDeviceSynchronize();
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				totalFreq++;
@@ -584,6 +590,12 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->support = sResult[sPivot];
 				sResultNodes[sPivot]->seq.push_back(-1);
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
+				sResultNodes[sPivot]->iBitmap->Malloc();
+				sResultNodes[sPivot]->iBitmap->SBitmapMalloc();
+				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
+				sResultNodes[sPivot]->iBitmap->CudaMemcpy(true);
+				sResultNodes[sPivot]->iBitmap->SBitmapCudaMemcpy();
+				cudaDeviceSynchronize();
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				totalFreq++;
@@ -609,6 +621,9 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		if (currentNodePtr->seq.size() != 1){
 			currentNodePtr->iBitmap->CudaFree();
+			currentNodePtr->iBitmap->Delete();
+			currentNodePtr->iBitmap->SBitmapDelete();
+			currentNodePtr->iBitmap->SBitmapCudaFree();
 			if (currentNodePtr->sList->free() == 0){
 				delete currentNodePtr->sList;
 			}
