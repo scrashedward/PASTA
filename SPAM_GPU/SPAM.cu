@@ -45,7 +45,7 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
-bool OUTPUT = false;
+bool OUTPUT = true;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -130,6 +130,10 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMalloc();
 		f1[i]->iBitmap->CudaMemcpy();
+		f1[i]->iBitmap->SBitmapMalloc();
+		f1[i]->iBitmap->SBitmapCudaMalloc();
+		f1[i]->iBitmap->SBitmapConversion();
+		f1[i]->iBitmap->SBitmapCudaMemcpy();
 	}
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
@@ -145,7 +149,7 @@ int main(int argc, char** argv){
 	delete fStack;
 	delete [] index;
 	delete [] f1;
-	//system("pause");
+	system("pause");
 }
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
@@ -455,7 +459,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				sWorkSize++;
 				for (int i = 0; i < 5; i++){
 					if (SeqBitmap::size[i] != 0){
-						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuSMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
 			}

@@ -69,9 +69,6 @@ public:
 		src1[length] = s1;
 		src2[length] = s2;
 		dst[length] = d;
-		if (debug && length == 112){
-			cout << "here length 112 is " << src1[length] << endl;
-		}
 		length++;
 		return;
 	}
@@ -206,15 +203,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			s12 = gsrc1[2 * threadPos + 1];
 			s21 = gsrc2[2 * threadPos];
 			s22 = gsrc2[2 * threadPos + 1];
-			if (type){
-				if (s11){
-					s11 = hibit(s11);
-					s12 = 0xFFFFFFFF;
-				}
-				else{
-					s12 = hibit(s12);
-				}
-			}
 			d1 = s11 & s21;
 			d2 = s12 & s22;
 			if (d1 || d2) sup[tid]++;
@@ -223,12 +211,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 
 		}
 		else{
-			if (type){
-				s1 = SBitmap(gsrc1[threadPos], bitmapType);
-			}
-			else{
-				s1 = gsrc1[threadPos];
-			}
+			s1 = gsrc1[threadPos];
 			s2 = gsrc2[threadPos];
 			d = s1 & s2;
 			sup[tid] += SupportCount( d, bitmapType);
