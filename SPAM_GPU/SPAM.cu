@@ -555,7 +555,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 	//t1 = clock();
 	int sPivot = sWorkSize;
 	int iPivot = iWorkSize;
-	vector<TreeNode*> vec;
+	vector<TreeNode*> vec[2];
+	int idx = 0;
 	thread sThread[8];
 	bool start = true;
 	while (!currentStack.empty()){
@@ -591,7 +592,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iBitmap->SBitmapMalloc();
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
 				iResultNodes[iPivot]->iBitmap->CudaMemcpy(true, sBitmapStream);
-				vec.push_back(iResultNodes[iPivot]);
+				vec[idx].push_back(iResultNodes[iPivot]);
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				vector<int> temp = iResultNodes[iPivot]->seq;
@@ -619,7 +620,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->iBitmap->SBitmapMalloc();
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
 				sResultNodes[sPivot]->iBitmap->CudaMemcpy(true, sBitmapStream);
-				vec.push_back(sResultNodes[sPivot]);
+				vec[idx].push_back(sResultNodes[sPivot]);
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				vector<int> temp = sResultNodes[sPivot]->seq;
@@ -632,7 +633,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 			}
 		}
 
-		if (vec.size() >= 128)
+		if (vec[idx].size() >= 128)
 		{
 			if (!start) 
 			{
@@ -648,8 +649,10 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 			cudaStreamSynchronize(sBitmapStream);
 			for (int i = 0; i < 8; ++i)
 			{
-				sThread[i] = thread(threadProcess, &vec, i, 8);
+				sThread[i] = thread(threadProcess, &(vec[idx]), i, 8);
 			}
+			idx ^= 1;
+			vec[idx].clear();
 		}
 
 		if (currentNodePtr->seq.size() != 1){
@@ -682,7 +685,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 	cudaStreamSynchronize(sBitmapStream);
 	for (int i = 0; i < 8; ++i)
 	{
-		sThread[i] = thread(threadProcess, &vec, i, 8);
+		sThread[i] = thread(threadProcess, &(vec[idx]), i, 8);
 	}
 	for (int i = 0; i < 8; ++i)
 	{
