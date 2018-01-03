@@ -182,8 +182,8 @@ public:
 		gpuMemPool.push(gpuSMemList[0]);
 	}
 
-	void SBitmapCudaMemcpy() {
-		cudaError_t error = cudaMemcpy(gpuSMemList[0], sBitmapList[0], sizeof(int) * sizeSum, cudaMemcpyHostToDevice);
+	void SBitmapCudaMemcpy(cudaStream_t cudaStream) {
+		cudaError_t error = cudaMemcpyAsync(gpuSMemList[0], sBitmapList[0], sizeof(int) * sizeSum, cudaMemcpyHostToDevice, cudaStream);
 		if (error != cudaSuccess) {
 			cout << error << endl;
 			cout << "Memcpy fail for sbitmap" << endl;
