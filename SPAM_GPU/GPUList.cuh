@@ -123,7 +123,6 @@ public:
 			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 		}
 		kernelTime += (clock() - t1);
-		//CudaMemcpy(true);
 	}
 };
 
@@ -170,18 +169,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			break;
 		}
 		if (bitmapType == 4){
-			/*unsigned long long int s1, s2;
-			s1 = (gsrc1[2 * threadPos] << 32) + gsrc1[2 * threadPos + 1];
-			s2 = (gsrc2[2 * threadPos] << 32) + gsrc2[2 * threadPos + 1];
-			if (type == true){
-				s1 = hibit64(s1);
-			}
-			//s2 = hibit64(s2);
-			unsigned long long int d = s1 & s2;
-			if (d != 0) sup[tid]++;
-			gdst[2 * threadPos] = (int)(d >> 32);
-			gdst[2 * threadPos + 1] = (int)(d & 0xFFFFFFFF);
-			*/
 			unsigned int s11, s12, s21, s22, d1, d2;
 			s11 = gsrc1[2 * threadPos];
 			s12 = gsrc1[2 * threadPos + 1];
@@ -213,9 +200,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			s2 = gsrc2[threadPos];
 			d = s1 & s2;
 			sup[tid] += SupportCount( d, bitmapType);
-			//if (currentBlock == 747&& (threadPos == 33 || threadPos == 58) && bitmapType == 1 && type){
-			//	printf("s1: %d s2: %d d: %d sup: %d tid: %d sup[tid]: %d\n", s1,s2,d, SupportCount(d,bitmapType), tid, sup[tid]);
-			//}
 			gdst[threadPos] = d;
 		}
 	}
@@ -227,19 +211,8 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 		}
 		__syncthreads();
 	}
-	//if (tid < 32){
-	//	sup[tid] += sup[tid + 32];
-	//	sup[tid] += sup[tid + 16];
-	//	sup[tid] += sup[tid + 8];
-	//	sup[tid] += sup[tid + 4];
-	//	sup[tid] += sup[tid + 2];
-	//	sup[tid] += sup[tid + 1];
-	//}
 	if (tid == 0){
 			result[currentBlock] += sup[0];
-			//if (currentBlock == 747 && type){
-			//	printf("%d %d\n", result[currentBlock], sup[0]);
-			//}
 	}
 }
 
