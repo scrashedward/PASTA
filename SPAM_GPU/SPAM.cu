@@ -45,7 +45,7 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
-bool OUTPUT = true;
+bool OUTPUT = false;
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
@@ -1002,4 +1002,29 @@ void PrintMemInfo(){
 		exit(-1);
 	}
 	cout << "Mem usage: " <<  totalMem - freeMem << endl;
+}
+
+void threadSbitmap(int *bitmapList, int* sBitmapList, int i)
+{
+	uint16_t* converted = (uint16_t*)bitmapList;
+	uint16_t* target = (uint16_t*)sBitmapList;
+	for (int j = 0; j < SeqBitmap::size[i] * 2; ++j)
+	{
+		target[j] = SeqBitmap::SBitmapTable[i][converted[j]];
+	}
+}
+
+void threadSbitmap3(int *bitmapList, int* sBitmapList)
+{
+	uint16_t* converted = (uint16_t*)bitmapList;
+	uint16_t* target = (uint16_t*)sBitmapList;
+	for (int i = 0; i < SeqBitmap::size[3] * 2; i += 2) {
+		if (converted[i + 1]) {
+			target[i + 1] = SeqBitmap::SBitmapTable[2][converted[i + 1]];
+			target[i] = 0xFFFF;
+		}
+		else {
+			target[i] = SeqBitmap::SBitmapTable[2][converted[i]];
+		}
+	}
 }

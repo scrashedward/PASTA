@@ -3,6 +3,7 @@
 #include <iostream>
 #include <math.h>
 #include <stack>
+#include <thread>
 
 using namespace std;
 
@@ -22,6 +23,8 @@ const unsigned int Bit32Table[32] =
 };
 
 extern __host__ __device__ int SBitmap(unsigned int n, int bitmapType);
+extern void threadSbitmap(int *bitmapList, int* sBitmapList, int i);
+extern void threadSbitmap3(int *bitmapList, int* sBitmapList);
 
 class SeqBitmap{
 public:
@@ -195,27 +198,10 @@ public:
 	void SBitmapConversion() {
 		uint16_t *converted;
 		uint16_t *target;
-		for (int i = 0; i < 3; ++i)
-		{
-			converted = (uint16_t*)bitmapList[i];
-			target = (uint16_t*)sBitmapList[i];
-			for (int j = 0; j < size[i] * 2; ++j)
-			{
-				target[j] = SBitmapTable[i][converted[j]];
-			}
-		}
-
-		converted = (uint16_t*)bitmapList[3];
-		target = (uint16_t*)sBitmapList[3];
-		for (int i = 0; i < size[3] * 2; i += 2) {
-			if (converted[i + 1]) {
-				target[i + 1] = SBitmapTable[2][converted[i + 1]];
-				target[i] = 0xFFFF;
-			}
-			else {
-				target[i] = SBitmapTable[2][converted[i]];
-			}
-		}
+		thread thr0(threadSbitmap, bitmapList[0], sBitmapList[0], 0);
+		thread thr1(threadSbitmap, bitmapList[1], sBitmapList[1], 1);
+		thread thr2(threadSbitmap, bitmapList[2], sBitmapList[2], 2);
+		thread thr3(threadSbitmap3, bitmapList[3], sBitmapList[3]);
 
 		converted = (uint16_t*)bitmapList[4];
 		target = (uint16_t*)sBitmapList[4];
@@ -240,7 +226,10 @@ public:
 			}
 		}
 
-
+		thr0.join();
+		thr1.join();
+		thr2.join();
+		thr3.join();
 	}
 
 	static void buildTable()
@@ -260,7 +249,6 @@ uint16_t SeqBitmap::SBitmapTable[3][65536] = { 0 };
 stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 
 #endif
-
 
 #ifndef  SHARED_LIST
 #define SHARED_LIST
