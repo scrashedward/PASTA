@@ -75,6 +75,8 @@ int main(int argc, char** argv){
 
 	cudaSetDevice(0);
 
+	SeqBitmap::buildTable();
+
 	TreeNode** f1 = NULL;
 	int *index = NULL;
 	stack<TreeNode*>* fStack = new stack<TreeNode*>;
@@ -94,6 +96,10 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMalloc();
 		f1[i]->iBitmap->CudaMemcpy();
+		f1[i]->iBitmap->SBitmapMalloc();
+		f1[i]->iBitmap->SBitmapCudaMalloc();
+		f1[i]->iBitmap->SBitmapConversion();
+		f1[i]->iBitmap->SBitmapCudaMemcpy();
 	}
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
@@ -462,7 +468,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				sWorkSize[tag]++;
 				for (int i = 0; i < 5; i++){
 					if (SeqBitmap::size[i] != 0){
-						sgList[tag][i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+						sgList[tag][i].AddToTail(currentNodePtr->iBitmap->gpuSMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
 			}
