@@ -617,6 +617,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		if (currentNodePtr->seq.size() != 1){
 			currentNodePtr->iBitmap->CudaFree();
+			currentNodePtr->iBitmap->SBitmapCudaFree();
 			if (currentNodePtr->sList->free() == 0){
 				delete currentNodePtr->sList;
 			}
