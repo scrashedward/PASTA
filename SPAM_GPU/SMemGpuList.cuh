@@ -27,6 +27,8 @@ public:
 	int ** sourceList;
 	int ** sBitmapList;
 	int size;
+	int ** gsList;
+	int ** gdList;
 	int curSize;
 
 	SMemGPUList()
@@ -41,6 +43,23 @@ public:
 	{
 		delete[] sourceList;
 		delete[] sBitmapList;
+	}
+
+	void clear()
+	{
+		curSize = 0;
+	}
+
+	void CudaMalloc(int maxSize)
+	{
+		gpuErrchk(cudaMalloc(&gsList, sizeof(int*) * maxSize));
+		gpuErrchk(cudaMalloc(&gdList, sizeof(int*) * maxSize));
+	}
+
+	void CudaFree()
+	{
+		cudaFree(gsList);
+		cudaFree(gdList);
 	}
 
 	void AddPair(int* source, int* sbitmap)
@@ -65,12 +84,8 @@ public:
 	void SBitmapConversion()
 	{
 		if (curSize == 0) return;
-		int ** gsList;
-		int ** gdList;
-		cudaMalloc(&gsList, sizeof(int) * curSize);
-		cudaMalloc(&gdList, sizeof(int) * curSize);
-		gpuErrchk(cudaMemcpy(gsList, sourceList, sizeof(int) * curSize, cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMemcpy(gdList, sBitmapList, sizeof(int) * curSize, cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(gsList, sourceList, sizeof(int*) * curSize, cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(gdList, sBitmapList, sizeof(int*) * curSize, cudaMemcpyHostToDevice));
 		int pad = 0;
 		for (int i = 0; i < 4; ++i)
 		{
@@ -82,8 +97,6 @@ public:
 		CudaSBitmapConversion64<<<curSize, 512>>>(gsList, gdList, pad, SeqBitmap::size[4]);
 		gpuErrchk(cudaPeekAtLastError());
 		gpuErrchk(cudaDeviceSynchronize());
-		gpuErrchk(cudaFree(gsList));
-		gpuErrchk(cudaFree(gdList));
 	}
 };
 

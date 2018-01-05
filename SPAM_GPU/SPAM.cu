@@ -47,6 +47,7 @@ int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
 bool OUTPUT = false;
+SMemGPUList sMemGpuList;
 
 int main(int argc, char** argv){
 
@@ -116,7 +117,7 @@ int main(int argc, char** argv){
 		f1List->list[i] = i;
 	}
 
-	SMemGPUList sMemGpuList;
+	sMemGpuList.CudaMalloc(MAX_BLOCK_NUM);
 
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
@@ -513,7 +514,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
 
-	SMemGPUList sMemGPUList;
+	sMemGpuList.clear();
 
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
@@ -553,7 +554,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->support = iResult[iPivot];
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
-				sMemGPUList.AddPair(iResultNodes[iPivot]->iBitmap->gpuMemList[0], iResultNodes[iPivot]->iBitmap->gpuSMemList[0]);
+				sMemGpuList.AddPair(iResultNodes[iPivot]->iBitmap->gpuMemList[0], iResultNodes[iPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				totalFreq++;
@@ -590,7 +591,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->seq.push_back(-1);
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
-				sMemGPUList.AddPair(sResultNodes[sPivot]->iBitmap->gpuMemList[0], sResultNodes[sPivot]->iBitmap->gpuSMemList[0]);
+				sMemGpuList.AddPair(sResultNodes[sPivot]->iBitmap->gpuMemList[0], sResultNodes[sPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				totalFreq++;
@@ -627,7 +628,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		currentStack.pop();
 	}
-	sMemGPUList.SBitmapConversion();
+	sMemGpuList.SBitmapConversion();
 }
 
 void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
