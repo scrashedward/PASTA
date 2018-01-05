@@ -12,6 +12,7 @@
 #include <stack>
 #include <queue>
 #include "GPUList.cuh"
+#include "SMemGpuList.cuh"
 #include <time.h>
 #include <bitset>
 
@@ -28,7 +29,6 @@ struct DbInfo{
 //C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\SPAM\Spam-1.3.3\Debug\input.txt
 //C:\Users\YuHeng.Hsieh\Box Sync\Reports\GPSAM\BMS1_spmf.clean.tran
 
-
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
 int getBitmapType(int size);
@@ -38,6 +38,7 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index);
 void PrintMemInfo();
+__global__ void tempDebug(int* input);
 
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
@@ -46,7 +47,6 @@ int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
 bool OUTPUT = false;
-__global__ void tempDebug(int* input, int length, int bitmapType);
 
 int main(int argc, char** argv){
 
@@ -116,6 +116,8 @@ int main(int argc, char** argv){
 		f1List->list[i] = i;
 	}
 
+	SMemGPUList sMemGpuList;
+
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
 		f1[i]->iList = f1List->get();
@@ -124,7 +126,12 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMalloc();
 		f1[i]->iBitmap->CudaMemcpy();
+		f1[i]->iBitmap->SBitmapCudaMalloc();
+		sMemGpuList.AddPair(f1[i]->iBitmap->gpuMemList[0], f1[i]->iBitmap->gpuSMemList[0]);
 	}
+
+	sMemGpuList.SBitmapConversion();
+
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
@@ -449,7 +456,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				sWorkSize++;
 				for (int i = 0; i < 5; i++){
 					if (SeqBitmap::size[i] != 0){
-						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
+						sgList[i].AddToTail(currentNodePtr->iBitmap->gpuSMemList[i], TreeNode::f1[currentNodePtr->sList->list[j]]->iBitmap->gpuMemList[i], tempNode->iBitmap->gpuMemList[i]);
 					}
 				}
 			}
@@ -506,6 +513,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
 
+	SMemGPUList sMemGPUList;
+
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
 			sgList[i].clear();
@@ -543,6 +552,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iListStart = iListSize - tmp;
 				iResultNodes[iPivot]->support = iResult[iPivot];
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
+				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
+				sMemGPUList.AddPair(iResultNodes[iPivot]->iBitmap->gpuMemList[0], iResultNodes[iPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				totalFreq++;
@@ -575,13 +586,11 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->sListLen = sListSize;
 				sResultNodes[sPivot]->iListLen = tmp;
 				sResultNodes[sPivot]->iListStart = sListSize - tmp;
-				if (sResultNodes[sPivot]->iListStart < 0){
-					cout << "iListStart < 0" << endl;
-					system("pause");
-				}
 				sResultNodes[sPivot]->support = sResult[sPivot];
 				sResultNodes[sPivot]->seq.push_back(-1);
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
+				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
+				sMemGPUList.AddPair(sResultNodes[sPivot]->iBitmap->gpuMemList[0], sResultNodes[sPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				totalFreq++;
@@ -618,6 +627,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		currentStack.pop();
 	}
+	sMemGPUList.SBitmapConversion();
 }
 
 void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index){
@@ -951,22 +961,8 @@ int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst, bool type){
 	return support;
 }
 
-__global__ void tempDebug(int* input, int length, int bitmapType){
-
-	int sup = 0;
-	if (bitmapType < 4){
-		for (int i = 0; i < length; i++){
-			sup += SupportCount(input[i], bitmapType);
-		}
-	}
-	else{
-		for (int i = 0; i < length; i += 2){
-			if (input[i] || input[i + 1]){
-				sup += 1;
-			}
-		}
-	}
-	printf("%d\n", sup);
+__global__ void tempDebug(int* input) {
+	printf("%d\n", input[0]);
 }
 
 void PrintMemInfo(){

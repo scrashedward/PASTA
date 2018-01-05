@@ -169,7 +169,7 @@ public:
 			gpuMemPool.pop();
 		}
 		else {
-			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int) * sizeSum);
+			cudaError error = cudaMalloc(&gpuSMemList[0], sizeof(int) * sizeSum);
 			if (error != cudaSuccess) {
 				cout << error << endl;
 				cout << "MemAlloc fail for sbitmap" << endl;
@@ -204,6 +204,55 @@ public:
 			cout << "i = " << i << endl;
 			for (int j = 0; j < 65536; ++j) {
 				SBitmapTable[i][j] = SBitmap(j, i);
+			}
+		}
+	}
+
+	void SBitmapConversion() {
+		uint16_t *converted;
+		uint16_t *target;
+		for (int i = 0; i < 3; ++i)
+		{
+			converted = (uint16_t*)bitmap[i];
+			target = (uint16_t*)sBitmapList[i];
+			for (int j = 0; j < size[i] * 2; ++j)
+			{
+				target[j] = SBitmapTable[i][converted[j]];
+			}
+		}
+
+		converted = (uint16_t*)bitmap[3];
+		target = (uint16_t*)sBitmapList[3];
+		for (int i = 0; i < size[3] * 2; i += 2) {
+			if (converted[i + 1]) {
+				target[i + 1] = SBitmapTable[2][converted[i + 1]];
+				target[i] = 0xFFFF;
+			}
+			else {
+				target[i] = SBitmapTable[2][converted[i]];
+			}
+		}
+
+		converted = (uint16_t*)bitmap[4];
+		target = (uint16_t*)sBitmapList[4];
+		for (int i = 0; i < size[4] * 4; i += 4) {
+			if (converted[i + 1]) {
+				target[i + 1] = SBitmapTable[2][converted[i + 1]];
+				target[i] = target[i + 2] = target[i + 3] = 0xFFFF;
+			}
+			else if (converted[i])
+			{
+				target[i] = SBitmapTable[2][converted[i]];
+				target[i + 2] = target[i + 3] = 0xFFFF;
+			}
+			else if (converted[i + 3])
+			{
+				target[i + 3] = SBitmapTable[2][converted[i + 3]];
+				target[i + 2] = 0xFFFF;
+			}
+			else if (converted[i + 2])
+			{
+				target[i + 2] = SBitmapTable[2][converted[i + 2]];
 			}
 		}
 	}
