@@ -117,7 +117,7 @@ int main(int argc, char** argv){
 		f1List->list[i] = i;
 	}
 
-	sMemGpuList.CudaMalloc(MAX_BLOCK_NUM);
+	sMemGpuList.CudaMalloc(MAX_BLOCK_NUM * 2);
 
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
