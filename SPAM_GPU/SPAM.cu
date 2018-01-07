@@ -57,8 +57,8 @@ int main(int argc, char** argv){
 
 	totalFreq = 0;
 	MAX_BLOCK_NUM = 512;
-	WORK_SIZE = MAX_BLOCK_NUM * 8;
-	MAX_WORK_SIZE = MAX_BLOCK_NUM * 32;
+	WORK_SIZE = 0;
+	MAX_WORK_SIZE = 0;
 	MAX_THREAD_NUM = 1024;
 
 	for (int i = 3; i < argc; i+=2){
@@ -75,6 +75,9 @@ int main(int argc, char** argv){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
 		}
 	}
+
+	if (WORK_SIZE == 0) WORK_SIZE = MAX_BLOCK_NUM;
+	if (MAX_WORK_SIZE == 0) MAX_WORK_SIZE = MAX_BLOCK_NUM * 4;
 
 	cudaSetDevice(0);
 
