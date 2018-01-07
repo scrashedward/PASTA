@@ -7,9 +7,6 @@
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
 __global__ void MemCheck(int ** src1);
-__host__ __device__ int SBitmap(unsigned int n, int bitmapType);
-__host__ __device__ int hibit(unsigned int n);
-__device__ int hibit64(unsigned long long int n);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -209,47 +206,6 @@ __global__ void MemCheck(int ** src1){
 	printf("\n");
 }
 
-__host__ __device__ int SBitmap(unsigned int n, int bitmapType){
-	int r = 0;
-	switch (bitmapType){
-	case 0:
-		r += hibit((n >> 28) & 0xF) << 28;
-		r += hibit((n >> 24) & 0xF) << 24;
-		r += hibit((n >> 20) & 0xF) << 20;
-		r += hibit((n >> 16) & 0xF) << 16;
-		r += hibit((n >> 12) & 0xF) << 12;
-		r += hibit((n >> 8) & 0xF) << 8;
-		r += hibit((n >> 4) & 0xF) << 4;
-		r += hibit((n)& 0xF);
-		break;
-	case 1:
-		r += hibit((n >> 24) & 0xFF) << 24;
-		r += hibit((n >> 16) & 0xFF) << 16;
-		r += hibit((n >> 8) & 0xFF) << 8;
-		r += hibit((n) & 0xFF);
-		break;
-	case 2:
-		r += hibit(n >> 16) << 16;
-		r += hibit(n & 0xFFFF);
-		break;
-	case 3:
-		r = hibit(n);
-		break;
-	default:
-		printf("This should not happen!\n");
-	}
-	return r;
-}
-
-__host__ __device__ int hibit(unsigned int n) {
-	n |= (n >> 1);
-	n |= (n >> 2);
-	n |= (n >> 4);
-	n |= (n >> 8);
-	n |= (n >> 16);
-	return (n - (n >> 1))==0? 0 : (n-(n>>1)-1);
-}
-
 __host__ __device__ int SupportCount(int n, int bitmapType){
 	int r = 0;
 	switch (bitmapType){
@@ -281,14 +237,4 @@ __host__ __device__ int SupportCount(int n, int bitmapType){
 		break;
 	}
 	return r;
-}
-
-__device__ int hibit64(unsigned long long int n){
-	n |= (n >> 1);
-	n |= (n >> 2);
-	n |= (n >> 4);
-	n |= (n >> 8);
-	n |= (n >> 16);
-	n |= (n >> 32);
-	return ((n - (n >> 1)) == 0) ? 0 :( n - (n >> 1) - 1);
 }

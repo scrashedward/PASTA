@@ -12,6 +12,7 @@
 #include <stack>
 #include <queue>
 #include "GPUList.cuh"
+#include "SMemGpuList.cuh"
 #include <time.h>
 
 using namespace std;
@@ -42,6 +43,8 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 cudaStream_t kernelStream, copyStream;
+
+SMemGPUList sMemGpuList;
 
 __global__ void tempDebug(int* input, int length, int bitmapType);
 
@@ -75,8 +78,6 @@ int main(int argc, char** argv){
 
 	cudaSetDevice(0);
 
-	SeqBitmap::buildTable();
-
 	TreeNode** f1 = NULL;
 	int *index = NULL;
 	stack<TreeNode*>* fStack = new stack<TreeNode*>;
@@ -88,6 +89,8 @@ int main(int argc, char** argv){
 		f1List->list[i] = i;
 	}
 
+	sMemGpuList.CudaMalloc(MAX_WORK_SIZE * 2);
+
 	for (int i = 0; i < dbInfo.f1Size; i++){
 		f1[i]->sList = f1List->get();
 		f1[i]->iList = f1List->get();
@@ -96,11 +99,14 @@ int main(int argc, char** argv){
 		f1[i]->iListStart = i + 1;
 		f1[i]->iBitmap->CudaMalloc();
 		f1[i]->iBitmap->CudaMemcpy();
-		f1[i]->iBitmap->SBitmapMalloc();
 		f1[i]->iBitmap->SBitmapCudaMalloc();
-		f1[i]->iBitmap->SBitmapConversion();
-		f1[i]->iBitmap->SBitmapCudaMemcpy();
+		sMemGpuList.AddPair(f1[i]->iBitmap->gpuMemList[0], f1[i]->iBitmap->gpuSMemList[0]);
 	}
+
+	sMemGpuList.SBitmapConversion(0);
+
+	cudaDeviceSynchronize();
+
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
@@ -523,7 +529,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		}
 		tag ^= 1;
 	}
-	delete [] sResultNodes[0];
+	delete[] sResultNodes[0];
 	delete[] iResultNodes[0];
 	delete[] sResultNodes[1];
 	delete[] iResultNodes[1];
@@ -541,6 +547,8 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 }
 
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
+
+	sMemGpuList.clear();
 
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
@@ -580,13 +588,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iListStart = iListSize - tmp;
 				iResultNodes[iPivot]->support = iResult[iPivot];
 				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
-				iResultNodes[iPivot]->iBitmap->Malloc();
-				iResultNodes[iPivot]->iBitmap->SBitmapMalloc();
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
-				iResultNodes[iPivot]->iBitmap->CudaMemcpy(true, copyStream);
-				iResultNodes[iPivot]->iBitmap->SBitmapConversion();
-				iResultNodes[iPivot]->iBitmap->SBitmapCudaMemcpy();
-				cudaStreamSynchronize(copyStream);
+				sMemGpuList.AddPair(iResultNodes[iPivot]->iBitmap->gpuMemList[0], iResultNodes[iPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(iResultNodes[iPivot]);
 				vector<int> temp = iResultNodes[iPivot]->seq;
@@ -610,13 +613,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->support = sResult[sPivot];
 				sResultNodes[sPivot]->seq.push_back(-1);
 				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
-				sResultNodes[sPivot]->iBitmap->Malloc();
-				sResultNodes[sPivot]->iBitmap->SBitmapMalloc();
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
-				sResultNodes[sPivot]->iBitmap->CudaMemcpy(true, copyStream);
-				sResultNodes[sPivot]->iBitmap->SBitmapConversion();
-				sResultNodes[sPivot]->iBitmap->SBitmapCudaMemcpy();
-				cudaStreamSynchronize(copyStream);
+				sMemGpuList.AddPair(sResultNodes[sPivot]->iBitmap->gpuMemList[0], sResultNodes[sPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
 				fStack->push(sResultNodes[sPivot]);
 				vector<int> temp = sResultNodes[sPivot]->seq;
@@ -630,9 +628,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		if (currentNodePtr->seq.size() != 1){
 			currentNodePtr->iBitmap->CudaFree();
-			currentNodePtr->iBitmap->Delete();
 			currentNodePtr->iBitmap->SBitmapCudaFree();
-			currentNodePtr->iBitmap->SBitmapDelete();
 			if (currentNodePtr->sList->free() == 0){
 				delete currentNodePtr->sList;
 			}
@@ -644,6 +640,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		}
 		currentStack.pop();
 	}
+
+	sMemGpuList.SBitmapConversion(copyStream);
 }
 
 
