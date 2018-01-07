@@ -131,13 +131,13 @@ __global__ void CudaSBitmapConversion64(int** src, int** dst, int pad, int size)
 		int s2 = s[i + 1];
 		if (s1)
 		{
-			d[i] = SBitmap((unsigned)s1, 4);
+			d[i] = SBitmap((unsigned)s1, 3);
 			d[i + 1] = 0xFFFFFFFF;
 		}
 		else
 		{
 			d[i] = 0;
-			d[i + 1] = SBitmap((unsigned)s2, 4);
+			d[i + 1] = SBitmap((unsigned)s2, 3);
 		}
 
 	}
