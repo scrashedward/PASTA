@@ -94,12 +94,8 @@ public:
 		{
 			CudaSBitmapConversion<<<curSize, 512, 0, cudaStream>>>(gsList, gdList, pad, SeqBitmap::size[i], i);
 			pad += SeqBitmap::size[i];
-			gpuErrchk(cudaPeekAtLastError());
-			gpuErrchk(cudaDeviceSynchronize());
 		}
 		CudaSBitmapConversion64<<<curSize, 512, 0, cudaStream>>>(gsList, gdList, pad, SeqBitmap::size[4]);
-		gpuErrchk(cudaPeekAtLastError());
-		gpuErrchk(cudaDeviceSynchronize());
 	}
 };
 
