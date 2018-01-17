@@ -15,6 +15,7 @@
 #include "SMemGpuList.cuh"
 #include <time.h>
 #include <bitset>
+#include <unordered_map>
 
 using namespace std;
 struct DbInfo{
@@ -36,7 +37,9 @@ void FindSeqPattern(stack<TreeNode*>*, int, int*);
 void FindSeqPatternNaive(stack<TreeNode*>* fStack, int minSup, int * index);
 void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
-void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index);
+void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack,
+	int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack,
+	int minSup, int *index, bool buildTable);
 void PrintMemInfo();
 __global__ void tempDebug(int* input);
 
@@ -46,8 +49,10 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
-bool OUTPUT = false;
+bool OUTPUT = true;
 SMemGPUList sMemGpuList;
+
+unordered_map<int, int> *iMap, *sMap;
 
 int main(int argc, char** argv){
 
@@ -108,7 +113,7 @@ int main(int argc, char** argv){
 	cudaSetDevice(0);
 	TreeNode** f1 = NULL;
 	int *index = NULL;
-	stack<TreeNode*>* fStack = new stack<TreeNode*>;
+	stack<TreeNode*>* f1Stack = new stack<TreeNode*>;
 
 	DbInfo dbInfo = ReadInput(input, minSupPer, f1, index);
 	SList * f1List = new SList(dbInfo.f1Size);
@@ -131,22 +136,27 @@ int main(int argc, char** argv){
 		sMemGpuList.AddPair(f1[i]->iBitmap->gpuMemList[0], f1[i]->iBitmap->gpuSMemList[0]);
 	}
 
+	iMap = new unordered_map<int, int>[dbInfo.f1Size];
+	sMap = new unordered_map<int, int>[dbInfo.f1Size];
+
 	sMemGpuList.SBitmapConversion();
 
 	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
-		fStack->push(f1[i]);
+		f1Stack->push(f1[i]);
 		//DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
 	//cout << "time taken : " << clock() - t1 << endl;
 
-	if (NAIVE)FindSeqPatternNaive(fStack, minSupPer*dbInfo.cNum, index);
-	else FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+	if (NAIVE)FindSeqPatternNaive(f1Stack, minSupPer*dbInfo.cNum, index);
+	else FindSeqPattern(f1Stack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
-	delete fStack;
-	delete [] index;
-	delete [] f1;
+	delete f1Stack;
+	delete[] index;
+	delete[] f1;
+	delete[] iMap;
+	delete[] sMap;
 	//system("pause");
 }
 
@@ -304,7 +314,7 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 		f1[i] = new TreeNode;
 		f1[i]->iBitmap = new SeqBitmap();
 		f1[i]->iBitmap->Malloc();
-		f1[i]->seq.push_back(index[i]);
+		f1[i]->seq.push_back(i);
 		f1[i]->support = itemCustCount[index[i]];
 	}
 	TreeNode::f1 = f1;
@@ -384,10 +394,12 @@ int getBitmapType(int size){
 	}
 }
 
-void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
+void FindSeqPattern(stack<TreeNode*>* f1Stack, int minSup, int * index){
 	clock_t tmining_start, tmining_end, t1, prepare = 0, post = 0, total = 0;
 	tmining_start = clock();
 	stack<TreeNode*> currentStack;
+	stack<TreeNode*>* fStack = new stack<TreeNode*>;
+	stack<TreeNode*>* fCurrentStack = f1Stack;
 	TreeNode* currentNodePtr;
 	int sWorkSize = 0;
 	int iWorkSize = 0;
@@ -395,6 +407,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	int iListLen;
 	int iListStart;
 	int *sResult, *iResult;
+	bool buildTable = true;
 	cudaHostAlloc(&sResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult, sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 
@@ -421,7 +434,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		sgList[i].gresult = sgresult;
 		igList[i].gresult = igresult;
 	}
-	while (!(fStack->empty())){
+	while (!(fCurrentStack->empty())){
 		//PrintMemInfo();
 		t1 = clock();
 		sWorkSize = 0;
@@ -441,19 +454,41 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			system("pause");
 			exit(-1);
 		}
-		while (max(sWorkSize,iWorkSize) < WORK_SIZE && !(fStack->empty())){
-			currentNodePtr = fStack->top();
+		while (max(sWorkSize,iWorkSize) < WORK_SIZE && !(fCurrentStack->empty())){
+			currentNodePtr = fCurrentStack->top();
 			sListLen = currentNodePtr->sListLen;
 			iListLen = currentNodePtr->iListLen;
 			iListStart = currentNodePtr->iListStart;
 			if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
+			vector<int> vec = currentNodePtr->seq;
 			for (int j = 0; j < sListLen; j++){
+				bool haveToCheck = true;
+				if (vec.size() >= 2 && index[vec[0]] == 72 && index[vec[1]] == 77)
+				{
+					int bp = 0;
+				}
+				if (!buildTable)
+				{
+					for (int s = vec.size() - 1; s >= 0; --s)
+					{
+						if (vec[s] == -1) continue;
+						if (sMap[vec[s]][currentNodePtr->sList->list[j]] == -1)
+						{
+							haveToCheck = false;
+							break;
+						}
+					}
+				}
+				if (!haveToCheck)
+				{
+					continue;
+				}
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
 				tempNode->iBitmap->CudaMalloc();
 				tempNode->seq = currentNodePtr->seq;
 				sResultNodes[sWorkSize] = tempNode;
-
+				currentNodePtr->sCandidate.push_back(currentNodePtr->sList->list[j]);
 				sWorkSize++;
 				for (int i = 0; i < 5; i++){
 					if (SeqBitmap::size[i] != 0){
@@ -462,11 +497,29 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				}
 			}
 			for (int j = 0; j < iListLen; j++){
+				bool haveToCheck = true;
+				if (!buildTable)
+				{
+					for (int s = vec.size() - 1; s >= 0; --s)
+					{
+						if (vec[s] == -1) break;
+						if (iMap[vec[s]][currentNodePtr->iList->list[j + iListStart]] == -1)
+						{
+							haveToCheck = false;
+							break;
+						}
+					}
+				}
+				if (!haveToCheck)
+				{
+					continue;
+				}
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
 				tempNode->iBitmap->CudaMalloc();
 				tempNode->seq = currentNodePtr->seq;
 				iResultNodes[iWorkSize] = tempNode;
+				currentNodePtr->iCandidate.push_back(currentNodePtr->iList->list[j + iListStart]);
 				iWorkSize++;
 				for (int i = 0; i < 5; i++){
 					if (SeqBitmap::size[i] != 0){
@@ -475,7 +528,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				}
 			}
 			currentStack.push(currentNodePtr);
-			fStack->pop();
+			fCurrentStack->pop();
 		}
 		prepare += clock() - t1;
 			
@@ -494,11 +547,21 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 		total += clock() - t1;
 		t1 = clock();
-		ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, index);
+		ResultCollecting(sgList, igList, sWorkSize, iWorkSize, currentStack, 
+			sResult, iResult, sResultNodes, iResultNodes, fStack, minSup, 
+			index, buildTable);
 		post += clock() - t1;
+
+		if (fCurrentStack->empty() && fCurrentStack == f1Stack)
+		{
+			buildTable = false;
+			fCurrentStack = fStack;
+		}
+
 	}
 	delete [] sResultNodes;
 	delete [] iResultNodes;
+	delete fStack;
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
 	cout << "total time for kernel execution:" << total << endl;
@@ -512,7 +575,9 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 	PrintMemInfo();
 }
 
-void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index  ){
+void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack,
+	int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack,
+	int minSup, int *index, bool buildTable){
 
 	sMemGpuList.clear();
 
@@ -529,22 +594,22 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		int sListSize = 0;
 		int iListSize = 0;
 		TreeNode* currentNodePtr = currentStack.top();
-		SList* sList = new SList(currentNodePtr->sListLen);
-		SList* iList = new SList(currentNodePtr->iListLen);
-		for (int i = 0; i < currentNodePtr->sListLen; i++){
-			if (sResult[sPivot - currentNodePtr->sListLen + i] >= minSup){
-				sList->list[sListSize++] = currentNodePtr->sList->list[i];
+		SList* sList = new SList(currentNodePtr->sCandidate.size());
+		SList* iList = new SList(currentNodePtr->iCandidate.size());
+		for (int i = 0; i < currentNodePtr->sCandidate.size(); i++){
+			if (sResult[sPivot - currentNodePtr->sCandidate.size() + i] >= minSup){
+				sList->list[sListSize++] = currentNodePtr->sCandidate[i];
 			}
 		}
-		for (int i = currentNodePtr->iListStart, j = 0; j < currentNodePtr->iListLen; j++){
-			if (iResult[iPivot - currentNodePtr->iListLen + j] >= minSup){
-				iList->list[iListSize++] = currentNodePtr->iList->list[i + j];
+		for (int i = 0; i < currentNodePtr->iCandidate.size(); i++){
+			if (iResult[iPivot - currentNodePtr->iCandidate.size() + i] >= minSup){
+				iList->list[iListSize++] = currentNodePtr->iCandidate[i];
 			}
 		}
 		int tmp = 0;
-		int iListStart = currentNodePtr->iListStart;
-		for (int i = currentNodePtr->iListLen - 1; i >= 0; i--){
+		for (int i = currentNodePtr->iCandidate.size() - 1; i >= 0; i--){
 			iPivot--;
+			if (iResultNodes[iPivot] == 0) continue;
 			if (iResult[iPivot] >= minSup){
 				iResultNodes[iPivot]->sList = sList->get();
 				iResultNodes[iPivot]->sListLen = sListSize;
@@ -552,7 +617,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				iResultNodes[iPivot]->iListLen = tmp;
 				iResultNodes[iPivot]->iListStart = iListSize - tmp;
 				iResultNodes[iPivot]->support = iResult[iPivot];
-				iResultNodes[iPivot]->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
+				iResultNodes[iPivot]->seq.push_back(currentNodePtr->iCandidate[i]);
 				iResultNodes[iPivot]->iBitmap->SBitmapCudaMalloc();
 				sMemGpuList.AddPair(iResultNodes[iPivot]->iBitmap->gpuMemList[0], iResultNodes[iPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
@@ -562,7 +627,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				if(OUTPUT){
 					for (int i = 0; i < temp.size(); i++){
 						if (temp[i] != -1){
-							cout << temp[i] << " ";
+							cout << index[temp[i]] << " ";
 						}
 						else{
 							cout << ", ";
@@ -573,14 +638,16 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				}
 			}
 			else{
+				if (buildTable) iMap[iResultNodes[iPivot]->seq[0]][currentNodePtr->iCandidate[i]] = -1;
 				iResultNodes[iPivot]->iBitmap->CudaFree();
 				delete iResultNodes[iPivot]->iBitmap;
 				delete iResultNodes[iPivot];
 			}
 		}
 		tmp = 0;
-		for (int i = currentNodePtr->sListLen - 1; i >= 0; i--){
+		for (int i = currentNodePtr->sCandidate.size() - 1; i >= 0; i--){
 			sPivot--;
+			if (sResultNodes[sPivot] == 0) continue;
 			if (sResult[sPivot] >= minSup){
 				sResultNodes[sPivot]->sList = sList->get();
 				sResultNodes[sPivot]->iList = sList->get();
@@ -589,7 +656,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				sResultNodes[sPivot]->iListStart = sListSize - tmp;
 				sResultNodes[sPivot]->support = sResult[sPivot];
 				sResultNodes[sPivot]->seq.push_back(-1);
-				sResultNodes[sPivot]->seq.push_back(index[currentNodePtr->sList->list[i]]);
+				sResultNodes[sPivot]->seq.push_back(currentNodePtr->sCandidate[i]);
 				sResultNodes[sPivot]->iBitmap->SBitmapCudaMalloc();
 				sMemGpuList.AddPair(sResultNodes[sPivot]->iBitmap->gpuMemList[0], sResultNodes[sPivot]->iBitmap->gpuSMemList[0]);
 				tmp++;
@@ -599,7 +666,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 					vector<int> temp = sResultNodes[sPivot]->seq;
 					for (int i = 0; i < temp.size(); i++){
 						if (temp[i] != -1){
-							cout << temp[i] << " ";
+							cout << index[temp[i]] << " ";
 						}
 						else{
 							cout << ", ";
@@ -610,6 +677,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				}
 			}
 			else{
+				if(buildTable) sMap[sResultNodes[sPivot]->seq[0]][currentNodePtr->sCandidate[i]] = -1;
 				sResultNodes[sPivot]->iBitmap->CudaFree();
 				delete sResultNodes[sPivot]->iBitmap;
 				delete sResultNodes[sPivot];

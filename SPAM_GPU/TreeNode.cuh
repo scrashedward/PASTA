@@ -16,6 +16,8 @@ public:
 	static int f1Len;
 	SeqBitmap * iBitmap;
 	int support;
+	vector<int> sCandidate;
+	vector<int> iCandidate;
 };
 
 TreeNode** TreeNode::f1 = NULL;
