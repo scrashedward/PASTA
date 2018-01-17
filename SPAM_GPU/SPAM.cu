@@ -462,22 +462,12 @@ void FindSeqPattern(stack<TreeNode*>* f1Stack, int minSup, int * index){
 			if (sWorkSize + sListLen > MAX_WORK_SIZE || iWorkSize + currentNodePtr->iListLen > MAX_WORK_SIZE) break;
 			vector<int> vec = currentNodePtr->seq;
 			for (int j = 0; j < sListLen; j++){
-				bool haveToCheck = true;
 				if (!buildTable)
 				{
-					for (int s = vec.size() - 1; s >= 0; --s)
+					if (sMap[vec[vec.size()-1]][currentNodePtr->sList->list[j]] == -1)
 					{
-						if (vec[s] == -1) continue;
-						if (sMap[vec[s]][currentNodePtr->sList->list[j]] == -1)
-						{
-							haveToCheck = false;
-							break;
-						}
+						continue;
 					}
-				}
-				if (!haveToCheck)
-				{
-					continue;
 				}
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
@@ -493,22 +483,12 @@ void FindSeqPattern(stack<TreeNode*>* f1Stack, int minSup, int * index){
 				}
 			}
 			for (int j = 0; j < iListLen; j++){
-				bool haveToCheck = true;
 				if (!buildTable)
 				{
-					for (int s = vec.size() - 1; s >= 0; --s)
+					if (iMap[vec[vec.size()-1]][currentNodePtr->iList->list[j + iListStart]] == -1)
 					{
-						if (vec[s] == -1) break;
-						if (iMap[vec[s]][currentNodePtr->iList->list[j + iListStart]] == -1)
-						{
-							haveToCheck = false;
-							break;
-						}
+						continue;
 					}
-				}
-				if (!haveToCheck)
-				{
-					continue;
 				}
 				TreeNode* tempNode = new TreeNode;
 				tempNode->iBitmap = new SeqBitmap();
