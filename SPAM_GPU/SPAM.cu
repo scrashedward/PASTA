@@ -49,7 +49,7 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool NAIVE = false;
-bool OUTPUT = true;
+bool OUTPUT = false;
 SMemGPUList sMemGpuList;
 
 unordered_map<int, int> *iMap, *sMap;
