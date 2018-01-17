@@ -463,10 +463,6 @@ void FindSeqPattern(stack<TreeNode*>* f1Stack, int minSup, int * index){
 			vector<int> vec = currentNodePtr->seq;
 			for (int j = 0; j < sListLen; j++){
 				bool haveToCheck = true;
-				if (vec.size() >= 2 && index[vec[0]] == 72 && index[vec[1]] == 77)
-				{
-					int bp = 0;
-				}
 				if (!buildTable)
 				{
 					for (int s = vec.size() - 1; s >= 0; --s)
