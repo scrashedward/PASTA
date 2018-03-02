@@ -147,6 +147,7 @@ int main(int argc, char** argv){
 	delete fStack;
 	delete [] index;
 	delete [] f1;
+	cudaDeviceReset();
 	//system("pause");
 }
 
