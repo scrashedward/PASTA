@@ -125,7 +125,7 @@ int main(int argc, char** argv){
 	delete fStack;
 	delete [] index;
 	delete [] f1;
-	//system("pause");
+	cudaDeviceReset();
 
 }
 
@@ -499,8 +499,19 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			fStack->pop();
 		}
 		prepare += clock() - t1;
+		if (running) cudaStreamSynchronize(kernelStream);
+		for (int i = 0; i < 5; i++){
+			if (SeqBitmap::size[i] > 0){
+				if (sWorkSize > 0){
+					sgList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true, kernelStream);
+				}
+				if (iWorkSize > 0){
+					igList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, kernelStream);
+				}
+			}
+		}
+
 		if (running){
-			cudaStreamSynchronize(kernelStream);
 			for (int i = 0; i < 5; i++){
 				if (SeqBitmap::size[i] > 0){
 					if (sWorkSize > 0){
@@ -516,16 +527,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 
 		running = true;
-		for (int i = 0; i < 5; i++){
-			if (SeqBitmap::size[i] > 0){
-				if (sWorkSize > 0){
-					sgList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true, kernelStream);
-				}
-				if (iWorkSize > 0){
-					igList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, kernelStream);
-				}
-			}
-		}
+
 		if (hasResult){
 			cudaStreamSynchronize(copyStream);
 			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
