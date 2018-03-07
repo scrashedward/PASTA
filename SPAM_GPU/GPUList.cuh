@@ -157,9 +157,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 		tmp = len + blockSize;
 	}
 
-//	int lmax = 4190;
-//	int lmin = 4182;
-//	if (tid == 0 && bid == 0) printf("%d %d  ", lmax, lmin);
 	for (int i = 0; i < tmp; i += blockSize){
 		int threadPos = i + tid;
 		if ((threadPos >= len&& bitmapType != 4) || (bitmapType ==4 && threadPos >= len/2)){

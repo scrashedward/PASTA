@@ -24,9 +24,6 @@ struct DbInfo{
 		cNum = c;
 	}
 };
-//C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\IBM Quest Data Generator\seq50.10.5.1.txt
-//C:\Users\YuHeng.Hsieh\Documents\Course\Data_mining\Works\SPAM\Spam-1.3.3\Debug\input.txt
-
 
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
