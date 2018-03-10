@@ -6,7 +6,6 @@
 
 using namespace std;
 __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
-__global__ void MemCheck(int ** src1);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -36,10 +35,6 @@ public:
 		cudaHostAlloc(&src2, sizeof(int*)* size, cudaHostAllocDefault);
 		cudaHostAlloc(&dst, sizeof(int*)* size, cudaHostAllocDefault);
 
-		//src1 = new int*[size];
-		//src2 = new int*[size];
-		//dst = new int*[size];
-		//hasGPUMem = false;
 		if (cudaMalloc(&gsrc1, sizeof(int*)* size) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc1" << endl;
 			system("pause");
@@ -105,10 +100,6 @@ public:
 			}
 			D2HTime += (clock() - t1);
 		}
-		//instructionTime += (clock() - t1);
-		//t1 = clock();
-		//cudaStreamSynchronize(cudaStream);
-		//waitingTime += clock() - t1;
 	}
 
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, cudaStream_t kernelStream){
@@ -179,7 +170,7 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 			s1 = gsrc1[threadPos];
 			s2 = gsrc2[threadPos];
 			d = s1 & s2;
-			sup[tid] += SupportCount( d, bitmapType);
+			if (d != 0) sup[tid] += SupportCount( d, bitmapType);
 			gdst[threadPos] = d;
 		}
 	}
@@ -194,13 +185,6 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	if (tid == 0){
 			result[currentBlock] += sup[0];
 	}
-}
-
-__global__ void MemCheck(int ** src1){
-	for (int i = 105; i <= 115; i++){
-		printf("%d %x ", i, src1[i]);
-	}
-	printf("\n");
 }
 
 __host__ __device__ int SupportCount(int n, int bitmapType){
@@ -230,7 +214,6 @@ __host__ __device__ int SupportCount(int n, int bitmapType){
 		if (n) r++;
 		break;
 	default:
-		printf("this should not happen!\n");
 		break;
 	}
 	return r;
