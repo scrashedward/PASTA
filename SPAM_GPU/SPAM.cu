@@ -105,17 +105,15 @@ int main(int argc, char** argv){
 
 	sMemGpuList.SBitmapConversion(0);
 
+	GPUList::buildSupTable();
+
 	cudaDeviceSynchronize();
 
-	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
-		//DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
-	//cout << "time taken : " << clock() - t1 << endl;
 
 	cout << "dataset size: " << endl;
-	PrintMemInfo();
 	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
 
 	delete f1List;
