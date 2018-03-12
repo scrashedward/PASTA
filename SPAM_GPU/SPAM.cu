@@ -12,8 +12,8 @@
 #include <map>
 #include <queue>
 #include <stack>
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <sys/time.h>
 
 using namespace std;
 struct DbInfo {
@@ -126,6 +126,8 @@ int main(int argc, char **argv) {
     }
   }
 
+  struct timeval tv1, tv2;
+  gettimeofday(&tv1, NULL);
   #pragma omp parallel for schedule(dynamic) num_threads(CPU_THREADS)
   for (int i = dbInfo.f1Size - 1; i >= 0; i--) {
     if (USE_GPU < 0) {
@@ -135,13 +137,21 @@ int main(int argc, char **argv) {
       fStack->push(f1[i]);
     }
   }
-
+  gettimeofday(&tv2, NULL);
+  printf("Total cpu time = %f seconds\n",
+         (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 +
+             (double)(tv2.tv_sec - tv1.tv_sec));
 
   if (USE_GPU >= 0) {
+    gettimeofday(&tv1, NULL);
     if (NAIVE)
       FindSeqPatternNaive(fStack, minSupPer * dbInfo.cNum, index);
     else
       FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+    gettimeofday(&tv2, NULL);
+    printf("Total gpu time = %f seconds\n",
+           (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 +
+               (double)(tv2.tv_sec - tv1.tv_sec));
   }
 
   delete f1List;
@@ -155,10 +165,10 @@ DbInfo ReadInput(char *input, float minSupPer, TreeNode **&f1, int *&index) {
   ResizableArray *tidArr = new ResizableArray(64);
   ResizableArray *iidArr = new ResizableArray(64);
   ifstream inFile;
-  int custID;           // current customer ID
-  int transID;          // current transaction ID
-  int itemID;           // current item ID
-  int prevTransID = -1; // previous transaction ID
+  int custID;            // current customer ID
+  int transID;           // current transaction ID
+  int itemID;            // current item ID
+  int prevTransID = -1;  // previous transaction ID
 
   inFile.open(input);
   if (!inFile.is_open()) {
@@ -167,9 +177,9 @@ DbInfo ReadInput(char *input, float minSupPer, TreeNode **&f1, int *&index) {
   }
 
   // initialize output variables
-  int custCount = -1; // # of customers in the dataset (largest ID)
-  int itemCount = -1; // # of items in the dataset (largest ID)
-  int lineCount = 0;  // number of transaction
+  int custCount = -1;  // # of customers in the dataset (largest ID)
+  int itemCount = -1;  // # of items in the dataset (largest ID)
+  int lineCount = 0;   // number of transaction
   int trueCustCount = 0;
   int custTransSize = 400;
   int itemCustSize = 400;
@@ -256,7 +266,7 @@ DbInfo ReadInput(char *input, float minSupPer, TreeNode **&f1, int *&index) {
   delete iidArr;
 
   cout << "custCount:" << trueCustCount << endl;
-  int minSup = (int) std::round((float)trueCustCount * minSupPer);
+  int minSup = (int)std::round((float)trueCustCount * minSupPer);
   cout << "minSup:" << minSup << endl;
   int f1Size = 0;
   map<int, int> f1map;
@@ -275,8 +285,7 @@ DbInfo ReadInput(char *input, float minSupPer, TreeNode **&f1, int *&index) {
   int avgCustTran = 0;
   int sizeOfBitmaps[6] = {0};
   for (int i = 0; i < custCount; i++) {
-    if (custTransCount[i] > maxCustTran)
-      maxCustTran = custTransCount[i];
+    if (custTransCount[i] > maxCustTran) maxCustTran = custTransCount[i];
     avgCustTran += custTransCount[i];
     sizeOfBitmaps[getBitmapType(custTransCount[i])]++;
   }
@@ -347,10 +356,8 @@ void IncArraySize(int *&array, int oldSize, int newSize) {
 
   // create a new array and copy data to the new one
   int *newArray = new int[newSize];
-  for (i = 0; i < oldSize; i++)
-    newArray[i] = array[i];
-  for (i = oldSize; i < newSize; i++)
-    newArray[i] = 0;
+  for (i = 0; i < oldSize; i++) newArray[i] = array[i];
+  for (i = oldSize; i < newSize; i++) newArray[i] = 0;
 
   // deallocate the old array and redirect the pointer to the new one
   delete[] array;
@@ -421,15 +428,13 @@ void FindSeqPattern(stack<TreeNode *> *fStack, int minSup, int *index) {
     if (cudaMemset(sgresult, 0, sizeof(int) * MAX_WORK_SIZE) != cudaSuccess) {
       cout << "cudaMemset error in sgresult" << endl;
       cudaError_t err = cudaGetLastError();
-      if (err != cudaSuccess)
-        printf("Error: %s\n", cudaGetErrorString(err));
+      if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
       exit(-1);
     }
     if (cudaMemset(igresult, 0, sizeof(int) * MAX_WORK_SIZE) != cudaSuccess) {
       cout << "cudaMemset error in igresult" << endl;
       cudaError_t err = cudaGetLastError();
-      if (err != cudaSuccess)
-        printf("Error: %s\n", cudaGetErrorString(err));
+      if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
       exit(-1);
     }
     while (max(sWorkSize, iWorkSize) < WORK_SIZE && !(fStack->empty())) {
@@ -558,8 +563,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize,
         iResultNodes[iPivot]->iListLen = tmp;
         iResultNodes[iPivot]->iListStart = iListSize - tmp;
         iResultNodes[iPivot]->support = iResult[iPivot];
-        iResultNodes[iPivot]->seq.push_back(
-            index[currentNodePtr->iList->list[i + iListStart]]);
+        iResultNodes[iPivot]
+            ->seq.push_back(index[currentNodePtr->iList->list[i + iListStart]]);
         tmp++;
         fStack->push(iResultNodes[iPivot]);
         totalFreq++;
@@ -592,8 +597,8 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize,
         sResultNodes[sPivot]->iListStart = sListSize - tmp;
         sResultNodes[sPivot]->support = sResult[sPivot];
         sResultNodes[sPivot]->seq.push_back(-1);
-        sResultNodes[sPivot]->seq.push_back(
-            index[currentNodePtr->sList->list[i]]);
+        sResultNodes[sPivot]
+            ->seq.push_back(index[currentNodePtr->sList->list[i]]);
         tmp++;
         fStack->push(sResultNodes[sPivot]);
         totalFreq++;
@@ -670,15 +675,13 @@ void FindSeqPatternNaive(stack<TreeNode *> *fStack, int minSup, int *index) {
   while (!(fStack->empty())) {
     // PrintMemInfo();
     t1 = clock();
-    if (OUTPUT)
-      cout << "fStack size: " << fStack->size() << endl;
+    if (OUTPUT) cout << "fStack size: " << fStack->size() << endl;
     workSize = 0;
 
     if (cudaMemset(gresult, 0, sizeof(int) * MAX_WORK_SIZE) != cudaSuccess) {
       cout << "cudaMemset error in gresult" << endl;
       cudaError_t err = cudaGetLastError();
-      if (err != cudaSuccess)
-        printf("Error: %s\n", cudaGetErrorString(err));
+      if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
       exit(-1);
     }
 
@@ -687,8 +690,7 @@ void FindSeqPatternNaive(stack<TreeNode *> *fStack, int minSup, int *index) {
       sListLen = currentNodePtr->sListLen;
       iListLen = currentNodePtr->iListLen;
       iListStart = currentNodePtr->iListStart;
-      if (workSize + sListLen + iListLen > MAX_WORK_SIZE)
-        break;
+      if (workSize + sListLen + iListLen > MAX_WORK_SIZE) break;
 
       for (int j = 0; j < sListLen; j++) {
         TreeNode *tempNode = new TreeNode;
@@ -818,8 +820,8 @@ void FindSeqPatternNaive(stack<TreeNode *> *fStack, int minSup, int *index) {
           }
           resultNodes[pivot]->support = result[pivot];
           resultNodes[pivot]->seq.push_back(-1);
-          resultNodes[pivot]->seq.push_back(
-              index[currentNodePtr->sList->list[i]]);
+          resultNodes[pivot]
+              ->seq.push_back(index[currentNodePtr->sList->list[i]]);
           tmp++;
           fStack->push(resultNodes[pivot]);
           totalFreq++;
@@ -905,7 +907,7 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
         cout << ", ";
       }
     }
-    cout <<  endl;
+    cout << endl;
     DFSPruning(tempNode, minSup, index);
   }
   for (int i = 0; i < iLen; i++) {
