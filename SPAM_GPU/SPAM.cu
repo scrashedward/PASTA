@@ -47,6 +47,8 @@ int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
+int CPU_THREADS = 1;
+int USE_GPU = -1;
 int totalFreq;
 bool NAIVE = false;
 bool OUTPUT = false;
@@ -72,6 +74,10 @@ int main(int argc, char **argv) {
       m = atoi(argv[i + 1]);
     } else if (strcmp(argv[i], "-t") == 0) {
       MAX_THREAD_NUM = atoi(argv[i + 1]);
+    } else if (strcmp(argv[i], "-c") == 0) {
+      CPU_THREADS = atoi(argv[i + 1]);
+    } else if (strcmp(argv[i], "-g") == 0) {
+      USE_GPU = atoi(argv[i + 1]);
     } else if (strcmp(argv[i], "-n") == 0) {
       NAIVE = strcmp(argv[i + 1], "false");
       cout << "using naive metnod" << endl;
@@ -85,30 +91,18 @@ int main(int argc, char **argv) {
   MAX_WORK_SIZE = MAX_BLOCK_NUM * m;
 
   cout << "BLOCK_NUM: " << MAX_BLOCK_NUM << endl;
-  cout << "WORK_SIZE:" << WORK_SIZE << endl;
-  cout << "MAX_WORK_SIZE:" << MAX_WORK_SIZE << endl;
-  cout << "THREAD_NUM:" << MAX_THREAD_NUM << endl;
+  cout << "WORK_SIZE: " << WORK_SIZE << endl;
+  cout << "MAX_WORK_SIZE: " << MAX_WORK_SIZE << endl;
+  cout << "THREAD_NUM: " << MAX_THREAD_NUM << endl;
+  cout << "USE_GPU: " << USE_GPU << endl;
 
   clock_t t1 = clock();
   SeqBitmap::buildTable();
   cout << clock() - t1 << endl;
 
-  // SeqBitmap::SetLength(8, 4, 2, 1, 1);
-
-  // SeqBitmap map;
-  // map.Malloc();
-  // map.SBitmapMalloc();
-  // map.bitmapList[0][0] = 0b01001000011000011000000000101110;
-  // map.bitmapList[1][0] = 0b01010011000011111000000000001010;
-  // map.bitmapList[2][0] = 0b01111100000110100000011111011011;
-  // map.bitmapList[3][0] = 0b00111111111111101010101010101000;
-  // map.bitmapList[4][0] = 0;
-  // map.bitmapList[4][1] = 0b00111111111111101010101010101000;
-
-  // map.SBitmapMalloc();
-  // map.SBitmapConversion();
-
-  cudaSetDevice(0);
+  if (USE_GPU >= 0) {
+    cudaSetDevice(USE_GPU);
+  }
   TreeNode **f1 = NULL;
   int *index = NULL;
   stack<TreeNode *> *fStack = new stack<TreeNode *>;
@@ -126,20 +120,29 @@ int main(int argc, char **argv) {
     f1[i]->sListLen = dbInfo.f1Size;
     f1[i]->iListLen = dbInfo.f1Size - i - 1;
     f1[i]->iListStart = i + 1;
-    f1[i]->iBitmap->CudaMalloc();
-    f1[i]->iBitmap->CudaMemcpy();
+    if (USE_GPU >= 0) {
+      f1[i]->iBitmap->CudaMalloc();
+      f1[i]->iBitmap->CudaMemcpy();
+    }
   }
-  // t1 = clock();
-  for (int i = dbInfo.f1Size - 1; i >= 0; i--) {
-    fStack->push(f1[i]);
-    // DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
-  }
-  // cout << "time taken : " << clock() - t1 << endl;
 
-  if (NAIVE)
-    FindSeqPatternNaive(fStack, minSupPer * dbInfo.cNum, index);
-  else
-    FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+  #pragma omp parallel for schedule(dynamic) num_threads(CPU_THREADS)
+  for (int i = dbInfo.f1Size - 1; i >= 0; i--) {
+    if (USE_GPU < 0) {
+      DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
+    } else {
+      #pragma omp critical
+      fStack->push(f1[i]);
+    }
+  }
+
+
+  if (USE_GPU >= 0) {
+    if (NAIVE)
+      FindSeqPatternNaive(fStack, minSupPer * dbInfo.cNum, index);
+    else
+      FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+  }
 
   delete f1List;
   delete fStack;
@@ -253,9 +256,8 @@ DbInfo ReadInput(char *input, float minSupPer, TreeNode **&f1, int *&index) {
   delete iidArr;
 
   cout << "custCount:" << trueCustCount << endl;
-  // cout << "itemCount" << itemCount << endl;
-  // cout << "minSup: " << float(custCount) * minSupPer << endl;
-  int minSup = trueCustCount * minSupPer;
+  int minSup = (int) std::round((float)trueCustCount * minSupPer);
+  cout << "minSup:" << minSup << endl;
   int f1Size = 0;
   map<int, int> f1map;
   ResizableArray *indexArray = new ResizableArray(10);
@@ -570,7 +572,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize,
               cout << ", ";
             }
           }
-          cout << iResult[iPivot];
+          cout << " -- " << iResult[iPivot];
           cout << endl;
         }
       } else {
@@ -604,7 +606,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize,
               cout << ", ";
             }
           }
-          cout << sResult[sPivot];
+          cout << " -- " << sResult[sPivot];
           cout << endl;
         }
       } else {
@@ -887,9 +889,6 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
     }
   }
   for (int i = 0; i < sList->index; i++) {
-    int sup = CpuSupportCounting(currentNode->iBitmap,
-                                 TreeNode::f1[sList->list[i]]->iBitmap,
-                                 tempNode->iBitmap, true);
     tempNode->sList = sList;
     tempNode->sListLen = sList->index;
     tempNode->iList = sList;
@@ -906,7 +905,7 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
         cout << ", ";
       }
     }
-    cout << " " << sup << endl;
+    cout <<  endl;
     DFSPruning(tempNode, minSup, index);
   }
   for (int i = 0; i < iLen; i++) {
@@ -918,9 +917,6 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
     }
   }
   for (int i = 0; i < iList->index; i++) {
-    int sup = CpuSupportCounting(currentNode->iBitmap,
-                                 TreeNode::f1[iList->list[i]]->iBitmap,
-                                 tempNode->iBitmap, false);
     tempNode->sList = sList;
     tempNode->sListLen = sList->index;
     tempNode->iList = iList;
@@ -936,7 +932,7 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
         cout << ", ";
       }
     }
-    cout << " " << sup << endl;
+    cout << endl;
     DFSPruning(tempNode, minSup, index);
   }
 

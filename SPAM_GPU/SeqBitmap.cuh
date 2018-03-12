@@ -68,9 +68,10 @@ public:
   }
 
   void Delete() {
-    for (auto b : bitmapList) {
+    /*for (auto b : bitmapList) {
       delete[] b;
-    }
+    }*/
+    delete[] bitmapList[0];
   }
 
   void SBitmapMalloc() {
