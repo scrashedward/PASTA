@@ -130,10 +130,12 @@ int main(int argc, char **argv) {
   GenerateSupportCountTable();
   struct timeval tv1, tv2;
   gettimeofday(&tv1, NULL);
+  #pragma omp parallel for schedule(dynamic) num_threads(CPU_THREADS)
   for (int i = dbInfo.f1Size - 1; i >= 0; i--) {
     if (USE_GPU < 0) {
       DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
     } else {
+      #pragma omp critical
       fStack->push(f1[i]);
     }
   }
@@ -924,6 +926,7 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
       iList->add(currentNode->iList->list[i + iStart]);
     }
   }
+
   for (int i = 0; i < iList->index; i++) {
     tempNode->sList = sList;
     tempNode->sListLen = sList->index;
