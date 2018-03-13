@@ -126,14 +126,14 @@ int main(int argc, char **argv) {
     }
   }
 
+  // generate support count table
+  GenerateSupportCountTable();
   struct timeval tv1, tv2;
   gettimeofday(&tv1, NULL);
-  #pragma omp parallel for schedule(dynamic) num_threads(CPU_THREADS)
   for (int i = dbInfo.f1Size - 1; i >= 0; i--) {
     if (USE_GPU < 0) {
       DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
     } else {
-      #pragma omp critical
       fStack->push(f1[i]);
     }
   }
@@ -883,10 +883,12 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
   TreeNode *tempNode = new TreeNode();
   tempNode->iBitmap = new SeqBitmap();
   tempNode->iBitmap->Malloc();
+  #pragma omp parallel for schedule(static) num_threads(CPU_THREADS)
   for (int i = 0; i < sLen; i++) {
     if (CpuSupportCounting(currentNode->iBitmap,
                            TreeNode::f1[currentNode->sList->list[i]]->iBitmap,
                            tempNode->iBitmap, true) >= minSup) {
+      #pragma omp critical
       sList->add(currentNode->sList->list[i]);
     }
   }
@@ -900,21 +902,25 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
     tempNode->seq.push_back(-1);
     tempNode->seq.push_back(index[sList->list[i]]);
     vector<int> temp = tempNode->seq;
-    for (int j = 0; j < temp.size(); j++) {
-      if (temp[j] != -1) {
-        cout << temp[j] << " ";
-      } else {
-        cout << ", ";
+    if (OUTPUT) {
+      for (int j = 0; j < temp.size(); j++) {
+        if (temp[j] != -1) {
+          cout << temp[j] << " ";
+        } else {
+          cout << ", ";
+        }
       }
+      cout << endl;
     }
-    cout << endl;
     DFSPruning(tempNode, minSup, index);
   }
+  #pragma omp parallel for schedule(static) num_threads(CPU_THREADS)
   for (int i = 0; i < iLen; i++) {
     if (CpuSupportCounting(
             currentNode->iBitmap,
             TreeNode::f1[currentNode->iList->list[i + iStart]]->iBitmap,
             tempNode->iBitmap, false) >= minSup) {
+      #pragma omp critical
       iList->add(currentNode->iList->list[i + iStart]);
     }
   }
@@ -927,14 +933,16 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
     tempNode->seq = currentNode->seq;
     tempNode->seq.push_back(index[iList->list[i]]);
     vector<int> temp = tempNode->seq;
-    for (int j = 0; j < temp.size(); j++) {
-      if (temp[j] != -1) {
-        cout << temp[j] << " ";
-      } else {
-        cout << ", ";
+    if (OUTPUT) {
+      for (int j = 0; j < temp.size(); j++) {
+        if (temp[j] != -1) {
+          cout << temp[j] << " ";
+        } else {
+          cout << ", ";
+        }
       }
+      cout << endl;
     }
-    cout << endl;
     DFSPruning(tempNode, minSup, index);
   }
 
@@ -948,25 +956,14 @@ void DFSPruning(TreeNode *currentNode, int minSup, int *index) {
 int CpuSupportCounting(SeqBitmap *s1, SeqBitmap *s2, SeqBitmap *dst,
                        bool type) {
   int support = 0;
-  int temp;
-  if (type) {
-    for (int i = 0; i < 5; i++) {
-      if (SeqBitmap::size[i] > 0) {
-        for (int j = 0; j < SeqBitmap::size[i]; j++) {
-          temp = SBitmap(s1->bitmapList[i][j], i) & s2->bitmapList[i][j];
-          support += SupportCount(temp, i);
-          dst->bitmapList[i][j] = temp;
-        }
-      }
-    }
-  } else {
-    for (int i = 0; i < 5; i++) {
-      if (SeqBitmap::size[i] > 0) {
-        for (int j = 0; j < SeqBitmap::size[i]; j++) {
-          temp = s1->bitmapList[i][j] & s2->bitmapList[i][j];
-          support += SupportCount(temp, i);
-          dst->bitmapList[i][j] = temp;
-        }
+  for (int i = 0; i < 5; i++) {
+    if (SeqBitmap::size[i] > 0) {
+      for (int j = 0; j < SeqBitmap::size[i]; j++) {
+        int temp = type
+                       ? SBitmap(s1->bitmapList[i][j], i) & s2->bitmapList[i][j]
+                       : s1->bitmapList[i][j] & s2->bitmapList[i][j];
+        support += SupportCountWithTable(temp, i);
+        dst->bitmapList[i][j] = temp;
       }
     }
   }

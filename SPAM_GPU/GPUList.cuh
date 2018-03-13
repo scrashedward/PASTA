@@ -375,7 +375,7 @@ __host__ __device__ int SBitmap(unsigned int n, int bitmapType) {
   return r;
 }
 
-__host__ __device__ int hibit(unsigned int n) {
+__host__ __device__ int hibit(uint32_t n) {
   n |= (n >> 1);
   n |= (n >> 2);
   n |= (n >> 4);
@@ -383,6 +383,59 @@ __host__ __device__ int hibit(unsigned int n) {
   n |= (n >> 16);
   return (n - (n >> 1)) == 0 ? 0 : (n - (n >> 1) - 1);
 }
+
+#define TYPES 4
+#define SHORT_MAX 1 << 16
+uint8_t supportCountTable[TYPES][SHORT_MAX];
+void GenerateSupportCountTable() {
+  // initialize to zero
+  for (int i = 0; i < TYPES; i++) {
+    for (int j = 0; j < SHORT_MAX; j++) {
+      supportCountTable[i][j] = 0;
+    }
+  }
+  for (uint32_t i = 0; i < SHORT_MAX; i++) {
+    if (i & 0xF000) {
+      supportCountTable[0][i]++;
+    }
+    if (i & 0x0F00) {
+      supportCountTable[0][i]++;
+    }
+    if (i & 0x00F0) {
+      supportCountTable[0][i]++;
+    }
+    if (i & 0x000F) {
+      supportCountTable[0][i]++;
+    }
+  }
+
+  for (uint32_t i = 0; i < SHORT_MAX; i++) {
+    if (i & 0xFF00) {
+      supportCountTable[1][i]++;
+    }
+    if (i & 0x00FF) {
+      supportCountTable[1][i]++;
+    }
+  }
+
+  for (uint32_t i = 0; i < SHORT_MAX; i++) {
+    if (i & 0xFFFF) {
+      supportCountTable[2][i]++;
+    }
+  }
+
+  for (uint32_t i = 0; i < SHORT_MAX; i++) {
+    if (i) {
+      supportCountTable[3][i]++;
+    }
+  }
+}
+int SupportCountWithTable(int n, int bitmapType) {
+  uint16_t left = n >> 16;
+  uint16_t right = n & 0xFFFF;
+  return supportCountTable[bitmapType][left] + supportCountTable[bitmapType][right];
+}
+
 
 __host__ __device__ int SupportCount(int n, int bitmapType) {
   int r = 0;
@@ -432,7 +485,7 @@ __host__ __device__ int SupportCount(int n, int bitmapType) {
   return r;
 }
 
-__device__ int hibit64(unsigned long long int n) {
+__device__ int hibit64(uint64_t n) {
   n |= (n >> 1);
   n |= (n >> 2);
   n |= (n >> 4);
