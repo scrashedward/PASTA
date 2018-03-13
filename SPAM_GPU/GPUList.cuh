@@ -13,10 +13,8 @@ __global__ void CudaSupportCountNaive(int **src1, int **src2, int **dst,
                                       int *result, int listLen, int len,
                                       int bitmapType, int oldBlock,
                                       bool *nodeType);
-__global__ void MemCheck(int **src1);
 __host__ __device__ int SBitmap(unsigned int n, int bitmapType);
 __host__ __device__ int hibit(unsigned int n);
-__device__ int hibit64(unsigned long long int n);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -336,13 +334,6 @@ __global__ void CudaSupportCountNaive(int **src1, int **src2, int **dst,
   }
 }
 
-__global__ void MemCheck(int **src1) {
-  for (int i = 105; i <= 115; i++) {
-    printf("%d %x ", i, src1[i]);
-  }
-  printf("\n");
-}
-
 __host__ __device__ int SBitmap(unsigned int n, int bitmapType) {
   int r = 0;
   switch (bitmapType) {
@@ -386,7 +377,7 @@ __host__ __device__ int hibit(uint32_t n) {
 
 #define TYPES 4
 #define SHORT_MAX 1 << 16
-uint8_t supportCountTable[TYPES][SHORT_MAX];
+static uint8_t supportCountTable[TYPES][SHORT_MAX];
 void GenerateSupportCountTable() {
   // initialize to zero
   for (int i = 0; i < TYPES; i++) {
@@ -485,12 +476,3 @@ __host__ __device__ int SupportCount(int n, int bitmapType) {
   return r;
 }
 
-__device__ int hibit64(uint64_t n) {
-  n |= (n >> 1);
-  n |= (n >> 2);
-  n |= (n >> 4);
-  n |= (n >> 8);
-  n |= (n >> 16);
-  n |= (n >> 32);
-  return ((n - (n >> 1)) == 0) ? 0 : (n - (n >> 1) - 1);
-}
