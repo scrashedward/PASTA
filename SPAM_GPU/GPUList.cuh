@@ -5,7 +5,7 @@
 #include <time.h>
 
 using namespace std;
-__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock);
+__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, bool type, int oldBlock);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -27,6 +27,7 @@ public:
 	static clock_t copyTime;
 	static clock_t H2DTime;
 	static clock_t D2HTime;
+	static int proportion; // the proportion of the load of a single kernel
 
 	GPUList(int size){
 		length = 0;
@@ -105,10 +106,26 @@ public:
 	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, cudaStream_t kernelStream){
 		CudaMemcpy(false, kernelStream);
 		clock_t t1 = clock();
+		int loadSize = float(SeqBitmap::size[bitmapType]) * float(proportion) / float(100);
+		if (loadSize < SeqBitmap::size[bitmapType]) loadSize++;
+		if (loadSize % 2 && loadSize < SeqBitmap::size[bitmapType]) loadSize++;
 		for (int oldBlock = 0; oldBlock < length; oldBlock += blockNum){
-			CudaSupportCount << < (length-oldBlock) < blockNum?(length-oldBlock) : blockNum, threadNum, sizeof(int)*threadNum, kernelStream >> >(gsrc1, gsrc2, gdst, gresult, length, SeqBitmap::size[bitmapType], bitmapType, type, oldBlock);
-			cudaError_t err = cudaGetLastError();
-			if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			for (int l = loadSize; l - SeqBitmap::size[bitmapType] < loadSize; l += loadSize)
+			{
+				CudaSupportCount <<< (length - oldBlock) < blockNum ? (length - oldBlock) : blockNum, threadNum, sizeof(int)*threadNum, kernelStream >>>(
+					gsrc1, 
+					gsrc2, 
+					gdst, 
+					gresult, 
+					length, 
+					l - loadSize, 
+					(l > SeqBitmap::size[bitmapType] ? SeqBitmap::size[bitmapType] : l),
+					bitmapType,
+					type,
+					oldBlock);
+				cudaError_t err = cudaGetLastError();
+				if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+			}
 		}
 		kernelTime += (clock() - t1);
 	}
@@ -118,10 +135,11 @@ clock_t GPUList::kernelTime = 0;
 clock_t GPUList::copyTime = 0;
 clock_t GPUList::H2DTime = 0;
 clock_t GPUList::D2HTime = 0;
+int GPUList::proportion = 100;
 
 #endif
 
-__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int len, int bitmapType, bool type, int oldBlock){
+__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, bool type, int oldBlock){
 
 	__shared__ extern int sup[];
 
@@ -142,23 +160,25 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	__syncthreads();
 	int tmp;
 	if (bitmapType == 4){
-		tmp = len / 2 + blockSize;
+		tmp = (end - start) / 2 + blockSize;
 	}
 	else{
-		tmp = len + blockSize;
+		tmp = (end - start) + blockSize;
 	}
 
 	for (int i = 0; i < tmp; i += blockSize){
-		int threadPos = i + tid;
-		if ((threadPos >= len&& bitmapType != 4) || (bitmapType ==4 && threadPos >= len/2)){
+		int threadPos;
+		if (bitmapType != 4) threadPos = start + i + tid;
+		else threadPos = start + i + 2 * tid;
+		if (threadPos >= end){
 			break;
 		}
 		if (bitmapType == 4){
 			unsigned int s11, s12, s21, s22, d1, d2;
-			s11 = gsrc1[2 * threadPos];
-			s12 = gsrc1[2 * threadPos + 1];
-			s21 = gsrc2[2 * threadPos];
-			s22 = gsrc2[2 * threadPos + 1];
+			s11 = gsrc1[threadPos];
+			s12 = gsrc1[threadPos + 1];
+			s21 = gsrc2[threadPos];
+			s22 = gsrc2[threadPos + 1];
 			d1 = s11 & s21;
 			d2 = s12 & s22;
 			if (d1 || d2) sup[tid]++;
