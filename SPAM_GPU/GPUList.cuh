@@ -176,7 +176,22 @@ __global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result
 	}
 	__syncthreads();
 
-	for (int s = blockSize / 2; s > 0; s >>= 1){
+	int hibit = blockSize;
+	hibit |= (hibit >>  1);
+	hibit |= (hibit >>  2);
+	hibit |= (hibit >>  4);
+	hibit |= (hibit >>  8);
+	hibit |= (hibit >> 16);
+	hibit = hibit - (hibit >> 1);
+
+	if (tid >= hibit)
+	{
+		sup[tid-hibit] += sup[tid];
+	}
+
+	__syncthreads();
+
+	for (int s = hibit / 2; s > 0; s >>= 1){
 		if (tid < s){
 			sup[tid] += sup[tid + s];
 		}
