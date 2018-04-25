@@ -112,12 +112,9 @@ int main(int argc, char** argv){
 
 	cudaDeviceSynchronize();
 
-	//t1 = clock();
 	for (int i = dbInfo.f1Size - 1; i >= 0; i--){
 		fStack->push(f1[i]);
-		//DFSPruning(f1[i], minSupPer * dbInfo.cNum, index);
 	}
-	//cout << "time taken : " << clock() - t1 << endl;
 
 	cout << "dataset size: " << endl;
 	PrintMemInfo();
@@ -296,10 +293,6 @@ DbInfo ReadInput(char* input, float minSupPer, TreeNode  **&f1, int *&index){
 			idx[bitmapType]++;
 			lastTid = tids[i];
 			tidIdx = 0;
-			//if (cids[i] == 967) {
-			//	cout << "at " << current << " bitmapType:  " << bitmapType << endl;
-			//	system("pause");
-			//}
 		}
 		else if(tids[i] != lastTid){
 			tidIdx++;
@@ -377,28 +370,25 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 
 	TreeNode ** sResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
 	TreeNode ** iResultNodes[2] = { new TreeNode*[MAX_WORK_SIZE], new TreeNode*[MAX_WORK_SIZE] };
-	GPUList sgList[2][5] = { { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) }, { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) } };
-	GPUList igList[2][5] = { { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) }, { GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE), GPUList(MAX_WORK_SIZE) } };
+	GPUList::listSize = MAX_WORK_SIZE;
+	GPUList sgList[2][5];
+	GPUList igList[2][5];
 
 	int *sgresult[2], *igresult[2];
 	if (cudaMalloc(&sgresult[0],sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in sgresult" << endl;
-		system("pause");
 		exit(-1);
 	}
 	if (cudaMalloc(&igresult[0], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in igresult" << endl;
-		system("pause");
 		exit(-1);
 	}
 	if (cudaMalloc(&sgresult[1], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in sgresult" << endl;
-		system("pause");
 		exit(-1);
 	}
 	if (cudaMalloc(&igresult[1], sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 		cout << "cudaMalloc error in igresult" << endl;
-		system("pause");
 		exit(-1);
 	}
 
@@ -445,7 +435,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			}
 		}
 		t1 = clock();
-		//cout << "fStack size: " << fStack->size() << endl;
+
 		sWorkSize[tag] = 0;
 		iWorkSize[tag] = 0;
 
@@ -453,14 +443,12 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 			cout << "cudaMemset error in sgresult" << endl;
 			cudaError = cudaGetLastError();
 			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
-			system("pause");
 			exit(-1);
 		}
 		if (cudaMemset(igresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
 			cout << "cudaMemset error in igresult" << endl;
 			 cudaError = cudaGetLastError();
 			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
-			system("pause");
 			exit(-1);
 		}
 		while (max(sWorkSize[tag],iWorkSize[tag]) < WORK_SIZE && !(fStack->empty())){
@@ -504,10 +492,10 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		for (int i = 0; i < 5; i++){
 			if (SeqBitmap::size[i] > 0){
 				if (sWorkSize > 0){
-					sgList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, true, kernelStream);
+					sgList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, kernelStream);
 				}
 				if (iWorkSize > 0){
-					igList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, false, kernelStream);
+					igList[tag][i].SupportCounting(MAX_BLOCK_NUM, MAX_THREAD_NUM, i, kernelStream);
 				}
 			}
 		}
@@ -774,7 +762,6 @@ void PrintMemInfo(){
 	err = cudaMemGetInfo(&freeMem, &totalMem);
 	if (err != cudaSuccess){
 		printf("Error: %s\n", cudaGetErrorString(err));
-		system("pause");
 		exit(-1);
 	}
 	cout << "Mem usage: " << totalMem - freeMem << endl;

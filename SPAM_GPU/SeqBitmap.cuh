@@ -88,7 +88,6 @@ public:
 			if ((error = cudaMemcpy(gpuMemList[0], bitmapList[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice)) != cudaSuccess){
 				cout << "cudaError: " << error << endl;
 				cout << "Memcpy fail in gpuMemList hostToDevice" << endl;
-				system("pause");
 				exit(-1);
 			}
 		}
@@ -96,7 +95,6 @@ public:
 			if ((error = cudaMemcpyAsync(bitmapList[0], gpuMemList[0], sizeof(int)*sizeSum, cudaMemcpyDeviceToHost, cudaStream)) != cudaSuccess){
 				cout << "cudaError: " << error << endl;
 				cout << "Memcpy fail in gpuMemList deviceToHost" << endl;
-				system("pause");
 				exit(-1);
 			}
 		}
@@ -146,7 +144,6 @@ public:
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "MemAlloc fail" << endl;
-				system("pause");
 				exit(-1);
 			}
 		}
@@ -167,7 +164,6 @@ public:
 			if (error != cudaSuccess) {
 				cout << error << endl;
 				cout << "MemAlloc fail for sbitmap" << endl;
-				system("pause");
 				exit(-1);
 			}
 		}
@@ -187,7 +183,6 @@ public:
 		if (error != cudaSuccess) {
 			cout << error << endl;
 			cout << "Memcpy fail for sbitmap" << endl;
-			system("pause");
 			exit(-1);
 		}
 	}

@@ -5,7 +5,7 @@
 #include <time.h>
 
 using namespace std;
-__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, bool type, int oldBlock);
+__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, int oldBlock);
 __host__ __device__ int SupportCount(int n, int bitmapType);
 
 #ifndef GPU_LIST
@@ -23,32 +23,30 @@ public:
 	int * gresult;
 	int length;
 	bool hasGPUMem;
+	static int listSize;
 	static clock_t kernelTime;
 	static clock_t copyTime;
 	static clock_t H2DTime;
 	static clock_t D2HTime;
 	static int proportion; // the proportion of the load of a single kernel
 
-	GPUList(int size){
+	GPUList(){
 		length = 0;
 
-		cudaHostAlloc(&src1, sizeof(int*)* size, cudaHostAllocDefault);
-		cudaHostAlloc(&src2, sizeof(int*)* size, cudaHostAllocDefault);
-		cudaHostAlloc(&dst, sizeof(int*)* size, cudaHostAllocDefault);
+		cudaHostAlloc(&src1, sizeof(int*)* listSize, cudaHostAllocDefault);
+		cudaHostAlloc(&src2, sizeof(int*)* listSize, cudaHostAllocDefault);
+		cudaHostAlloc(&dst, sizeof(int*)* listSize, cudaHostAllocDefault);
 
-		if (cudaMalloc(&gsrc1, sizeof(int*)* size) != cudaSuccess){
+		if (cudaMalloc(&gsrc1, sizeof(int*)* listSize) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc1" << endl;
-			system("pause");
 			exit(-1);
 		}
-		if (cudaMalloc(&gsrc2, sizeof(int*)*size) != cudaSuccess){
+		if (cudaMalloc(&gsrc2, sizeof(int*)*listSize) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc2" << endl;
-			system("pause");
 			exit(-1);
 		}
-		if (cudaMalloc(&gdst, sizeof(int*)*size) != cudaSuccess){
+		if (cudaMalloc(&gdst, sizeof(int*)*listSize) != cudaSuccess){
 			cout << "cudaMalloc error gdist" << endl;
-			system("pause");
 			exit(-1);
 		}
 
@@ -74,17 +72,14 @@ public:
 			clock_t t1 = clock();
 			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc1" << endl;
-				system("pause");
 				exit(-1);
 			}
 			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gsrc2" << endl;
-				system("pause");
 				exit(-1);
 			}
 			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
 				cout << "cudaMemcpy error in gdist" << endl;
-				system("pause");
 				exit(-1);
 			}
 			H2DTime += (clock() - t1);
@@ -96,14 +91,13 @@ public:
 			if (error != cudaSuccess){
 				cout << error << endl;
 				cout << "cudaMemcpy error in gresult" << endl;
-				system("pause");
 				exit(-1);
 			}
 			D2HTime += (clock() - t1);
 		}
 	}
 
-	void SupportCounting(int blockNum, int threadNum, int bitmapType, bool type, cudaStream_t kernelStream){
+	void SupportCounting(int blockNum, int threadNum, int bitmapType, cudaStream_t kernelStream){
 		CudaMemcpy(false, kernelStream);
 		clock_t t1 = clock();
 		int loadSize = float(SeqBitmap::size[bitmapType]) * float(proportion) / float(100);
@@ -136,10 +130,11 @@ clock_t GPUList::copyTime = 0;
 clock_t GPUList::H2DTime = 0;
 clock_t GPUList::D2HTime = 0;
 int GPUList::proportion = 100;
+int GPUList::listSize = 4096;
 
 #endif
 
-__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, bool type, int oldBlock){
+__global__ void CudaSupportCount(int** src1, int** src2, int** dst, int * result, int listLen, int start, int end, int bitmapType, int oldBlock){
 
 	__shared__ extern int sup[];
 
