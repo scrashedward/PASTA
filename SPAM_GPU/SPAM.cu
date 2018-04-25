@@ -57,6 +57,7 @@ int main(int argc, char** argv){
 	WORK_SIZE = 0;
 	MAX_WORK_SIZE = 0;
 	MAX_THREAD_NUM = 1024;
+	GPUList::proportion = 100;
 
 	for (int i = 3; i < argc; i+=2){
 		if (strcmp(argv[i], "-b") == 0){
@@ -70,6 +71,10 @@ int main(int argc, char** argv){
 		}
 		else if (strcmp(argv[i], "-t") == 0){
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
+		}
+		else if (strcmp(argv[i], "-p") == 0){
+			GPUList::proportion = atoi(argv[i + 1]);
+			cout << "Proportion of work division: " << GPUList::proportion << endl;
 		}
 	}
 
