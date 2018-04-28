@@ -27,6 +27,8 @@ class SeqBitmap{
 public:
 	int * bitmapList[5];
 	int * sBitmapList[5];
+	bool memPos;
+	bool sBitmapMemPos;
 	static int length[5];
 	static int size[5];
 	static int sizeSum;
@@ -81,20 +83,24 @@ public:
 			sizeSum += i;
 		}
 	}
-
+	
+	// Use the default stream if not specified
 	void CudaMemcpy(bool deviceToHost = false, cudaStream_t cudaStream = 0){
 		cudaError_t error;
 		if (!deviceToHost) {
-			if ((error = cudaMemcpy(gpuMemList[0], bitmapList[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice)) != cudaSuccess){
-				cout << "cudaError: " << error << endl;
+			if ((error = cudaMemcpyAsync(gpuMemList[0], bitmapList[0], sizeof(int)*sizeSum, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
+				cout << "cudaError: " << cudaGetErrorString(error) << endl;
 				cout << "Memcpy fail in gpuMemList hostToDevice" << endl;
+				fgetc(stdin);
 				exit(-1);
 			}
+			memPos = 1;
 		}
 		else {
 			if ((error = cudaMemcpyAsync(bitmapList[0], gpuMemList[0], sizeof(int)*sizeSum, cudaMemcpyDeviceToHost, cudaStream)) != cudaSuccess){
-				cout << "cudaError: " << error << endl;
+				cout << "cudaError: " << cudaGetErrorString(error) << endl;
 				cout << "Memcpy fail in gpuMemList deviceToHost" << endl;
+				fgetc(stdin);
 				exit(-1);
 			}
 		}
@@ -102,6 +108,7 @@ public:
 
 	void CudaFree(){
 		gpuMemPool.push(gpuMemList[0]);
+		memPos = 0;
 	}
 
 	void SetBit(int bitmapType, int number, int i){
@@ -134,44 +141,66 @@ public:
 		}
 	}
 
-	void CudaMalloc(){
+	void CudaMallocForInit()
+	{
+		cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sizeSum);
+		if (error != cudaSuccess) {
+			cout << error << endl;
+			cout << "MemAlloc fail" << endl;
+			exit(-1);
+		}
+		int sum = 0;
+		for (int i = 0; i < 4; i++) {
+			sum += size[i];
+			gpuMemList[i + 1] = (gpuMemList[0] + sum);
+		}
+	}
+
+	bool CudaMalloc(){
 		if (!gpuMemPool.empty()) {
 			gpuMemList[0] = gpuMemPool.top();
 			gpuMemPool.pop();
 		}
 		else{
-			cudaError error = cudaMalloc(&gpuMemList[0], sizeof(int)* sizeSum);
-			if (error != cudaSuccess){
-				cout << error << endl;
-				cout << "MemAlloc fail" << endl;
-				exit(-1);
-			}
+			return false;
 		}
 		int sum = 0;
 		for (int i = 0; i < 4; i++){
 			sum += size[i];
 			gpuMemList[i + 1] = (gpuMemList[0] + sum);
 		}
+		return true;
 	}
 
-	void SBitmapCudaMalloc() {
-		if (!gpuMemPool.empty()) {
-			gpuSMemList[0] = gpuMemPool.top();
-			gpuMemPool.pop();
-		}
-		else {
-			cudaError error = cudaMalloc(&gpuSMemList[0], sizeof(int) * sizeSum);
-			if (error != cudaSuccess) {
-				cout << error << endl;
-				cout << "MemAlloc fail for sbitmap" << endl;
-				exit(-1);
-			}
+	void SBitmapCudaMallocForInit()
+	{
+		cudaError error = cudaMalloc(&gpuSMemList[0], sizeof(int)* sizeSum);
+		if (error != cudaSuccess) {
+			cout << cudaGetErrorString(error) << endl;
+			cout << "MemAlloc fail" << endl;
+			exit(-1);
 		}
 		int sum = 0;
 		for (int i = 0; i < 4; i++) {
 			sum += size[i];
 			gpuSMemList[i + 1] = (gpuSMemList[0] + sum);
 		}
+	}
+
+	bool SBitmapCudaMalloc() {
+		if (!gpuMemPool.empty()) {
+			gpuSMemList[0] = gpuMemPool.top();
+			gpuMemPool.pop();
+		}
+		else {
+			return false;
+		}
+		int sum = 0;
+		for (int i = 0; i < 4; i++) {
+			sum += size[i];
+			gpuSMemList[i + 1] = (gpuSMemList[0] + sum);
+		}
+		return true;
 	}
 
 	void SBitmapCudaFree() {

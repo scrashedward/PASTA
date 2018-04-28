@@ -33,12 +33,15 @@ void DFSPruning(TreeNode* currentNode, int minSup, int *index);
 int CpuSupportCounting(SeqBitmap* s1, SeqBitmap* s2, SeqBitmap* dst, bool type);
 void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, stack<TreeNode*> *fStack, int minSup, int *index);
 void PrintMemInfo();
+size_t GetMemSize();
 
 int MAX_WORK_SIZE;
 int MAX_BLOCK_NUM;
 int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
+bool pipeline = false;
+int memLim = 0;
 cudaStream_t kernelStream, copyStream;
 
 SMemGPUList sMemGpuList;
@@ -60,21 +63,35 @@ int main(int argc, char** argv){
 	GPUList::proportion = 100;
 
 	for (int i = 3; i < argc; i+=2){
-		if (strcmp(argv[i], "-b") == 0){
+		if (strcmp(argv[i], "-b") == 0)
+		{
 			MAX_BLOCK_NUM = atoi(argv[i + 1]);
 		}
-		else if (strcmp(argv[i], "-w") == 0){
+		else if (strcmp(argv[i], "-w") == 0)
+		{
 			WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (strcmp(argv[i], "-m") == 0){
+		else if (strcmp(argv[i], "-m") == 0)
+		{
 			MAX_WORK_SIZE = MAX_BLOCK_NUM * atoi(argv[i + 1]);
 		}
-		else if (strcmp(argv[i], "-t") == 0){
+		else if (strcmp(argv[i], "-t") == 0)
+		{
 			MAX_THREAD_NUM = atoi(argv[i + 1]);
 		}
-		else if (strcmp(argv[i], "-p") == 0){
+		else if (strcmp(argv[i], "-p") == 0)
+		{
 			GPUList::proportion = atoi(argv[i + 1]);
 			cout << "Proportion of work division: " << GPUList::proportion << endl;
+		}
+		else if (strcmp(argv[i], "P") == 0) // turn on pipeline
+		{
+			i--;
+			pipeline = true;
+		}
+		else if (strcmp(argv[i], "-M") == 0) // set the memory limits
+		{
+			memLim = atoi(argv[i + 1]);
 		}
 	}
 
@@ -102,9 +119,9 @@ int main(int argc, char** argv){
 		f1[i]->sListLen = dbInfo.f1Size;
 		f1[i]->iListLen = dbInfo.f1Size - i - 1;
 		f1[i]->iListStart = i + 1;
-		f1[i]->iBitmap->CudaMalloc();
+		f1[i]->iBitmap->CudaMallocForInit();
 		f1[i]->iBitmap->CudaMemcpy();
-		f1[i]->iBitmap->SBitmapCudaMalloc();
+		f1[i]->iBitmap->SBitmapCudaMallocForInit();
 		sMemGpuList.AddPair(f1[i]->iBitmap->gpuMemList[0], f1[i]->iBitmap->gpuSMemList[0]);
 	}
 
@@ -403,15 +420,34 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		igList[1][i].gresult = igresult[1];
 	}
 	
+	PrintMemInfo();
+	size_t suggestMemSize = GetMemSize();
+	suggestMemSize -= suggestMemSize%SeqBitmap::sizeSum;
+	cout << "Available memory size: " << suggestMemSize * sizeof(int) << endl;
+	int* gpuMem;
+	if (cudaMalloc(&gpuMem, sizeof(int)*suggestMemSize) != cudaSuccess) {
+		cout << "cudaMalloc failed " << endl;
+		fgetc(stdin);
+	}
+	while (suggestMemSize > 0) {
+		suggestMemSize -= SeqBitmap::sizeSum;
+		SeqBitmap::gpuMemPool.push(gpuMem + suggestMemSize);
+	}
+
+	if (suggestMemSize != 0) {
+		cout << "something wrong!!!" << endl;
+		fgetc(stdin);
+	}
+
 	cout << "memory info before mining start:" << endl;
 	PrintMemInfo();
+
 	int sum = 0;
 	for (int i = 0; i < 5; i++){
 		sum += SeqBitmap::size[i];
 	}
 	cout << "bitmap size: " << sum * 4 << endl;
 	while (1){
-		//PrintMemInfo();
 		if (fStack->empty()){
 			if (running){
 				cudaStreamSynchronize(kernelStream);
@@ -475,7 +511,6 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 				tempNode->iBitmap = new SeqBitmap();
 				tempNode->iBitmap->CudaMalloc();
 				tempNode->seq = currentNodePtr->seq;
-				//tempNode->seq.push_back(index[currentNodePtr->iList->list[j+iListStart]]);
 				iResultNodes[tag][iWorkSize[tag]] = tempNode;
 				iWorkSize[tag]++;
 				for (int i = 0; i < 5; i++){
@@ -520,6 +555,7 @@ void FindSeqPattern(stack<TreeNode*>* fStack, int minSup, int * index){
 		if (hasResult){
 			cudaStreamSynchronize(copyStream);
 			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+			if (!pipeline) cudaStreamSynchronize(kernelStream);
 		}
 		tag ^= 1;
 	}
@@ -556,10 +592,10 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 	while (!currentStack.empty()){
 		int sListSize = 0;
 		int iListSize = 0;
-		//cout << "stackSize:" << currentStack.size() << endl;
 		TreeNode* currentNodePtr = currentStack.top();
 		SList* sList = new SList(currentNodePtr->sListLen);
 		SList* iList = new SList(currentNodePtr->iListLen);
+
 		for (int i = 0; i < currentNodePtr->sListLen; i++){
 			if (sResult[sPivot - currentNodePtr->sListLen + i] >= minSup){
 				sList->list[sListSize++] = currentNodePtr->sList->list[i];
@@ -765,4 +801,16 @@ void PrintMemInfo(){
 		exit(-1);
 	}
 	cout << "Mem usage: " << totalMem - freeMem << endl;
+}
+
+size_t GetMemSize() {
+	size_t freeMem, totalMem;
+	cudaError_t err;
+	err = cudaMemGetInfo(&freeMem, &totalMem);
+	if (err != cudaSuccess) {
+		printf("Error: %s in PrintMemInfo\n", cudaGetErrorString(err));
+		exit(-1);
+	}
+	if (memLim == 0 || memLim>(freeMem >> 20)) return (freeMem - (1 << 28)) / 4;//leave 256MB for system work and to ensure the kernel are working correctly
+	else return memLim << 18;
 }

@@ -70,15 +70,19 @@ public:
 	void CudaMemcpy(bool kind, cudaStream_t cudaStream){
 		if (!kind){
 			clock_t t1 = clock();
-			if (cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			cudaError_t error;
+			if ((error = cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
+				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gsrc1" << endl;
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if ((error = cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
+				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gsrc2" << endl;
 				exit(-1);
 			}
-			if (cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream) != cudaSuccess){
+			if ((error = cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
+				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gdist" << endl;
 				exit(-1);
 			}
@@ -115,7 +119,6 @@ public:
 					l - loadSize, 
 					(l > SeqBitmap::size[bitmapType] ? SeqBitmap::size[bitmapType] : l),
 					bitmapType,
-					type,
 					oldBlock);
 				cudaError_t err = cudaGetLastError();
 				if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
