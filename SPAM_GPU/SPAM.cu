@@ -384,6 +384,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	int lowestMemLeft = INT_MAX;
 	int memLogCount = 0; // The interation number to output memory usage
 	long memSwapped = 0; // Total memory swapped
+	long totalCandidates = 0;
 
 	cudaHostAlloc(&sResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
 	cudaHostAlloc(&iResult[0], sizeof(int)* MAX_WORK_SIZE, cudaHostAllocDefault);
@@ -566,10 +567,12 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 			currentStack[tag].push(currentNodePtr);
 		}
 
+		// performance statistics
 		if (SeqBitmap::gpuMemPool.size() < lowestMemLeft)
 		{
 			lowestMemLeft = SeqBitmap::gpuMemPool.size();
 		}
+		totalCandidates += sWorkSize[tag] + iWorkSize[tag];
 
 		// Ensure the copy back operation is finished after s-step processing
 		if (isCopy)
@@ -641,13 +644,9 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	delete[] iResultNodes[1];
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
-	cout << "total time for kernel execution:" << total << endl;
-	cout << "total time for inner kernel execution:" << GPUList::kernelTime << endl;
-	cout << "total time for inner copy operation:" << GPUList::copyTime << endl;
-	cout << "total time for data preparing:" << prepare << endl;
-	cout << "total time for result processing:" << post << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
 	cout << "total Memory Swapped: " << memSwapped * SeqBitmap::sizeSum << endl;
+	cout << "total Candidate Number: " << totalCandidates << endl;
 	PrintMemInfo();
 }
 
