@@ -39,26 +39,26 @@ public:
 
 		if (cudaMalloc(&gsrc1, sizeof(int*)* listSize) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc1" << endl;
+			fgetc(stdin);
 			exit(-1);
 		}
 		if (cudaMalloc(&gsrc2, sizeof(int*)*listSize) != cudaSuccess){
 			cout << "cudaMalloc error in gsrc2" << endl;
+			fgetc(stdin);
 			exit(-1);
 		}
 		if (cudaMalloc(&gdst, sizeof(int*)*listSize) != cudaSuccess){
 			cout << "cudaMalloc error gdist" << endl;
+			fgetc(stdin);
 			exit(-1);
 		}
 
 	}
 	
-	void AddToTail(int *s1, int *s2, int *d, bool debug = false){
+	void AddToTail(int *s1, int *s2, int *d){
 		src1[length] = s1;
 		src2[length] = s2;
 		dst[length] = d;
-		if (debug && length == 112){
-			cout << "here length 112 is " << src1[length] << endl;
-		}
 		length++;
 		return;
 	}
@@ -74,16 +74,19 @@ public:
 			if ((error = cudaMemcpyAsync(gsrc1, src1, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
 				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gsrc1" << endl;
+				fgetc(stdin);
 				exit(-1);
 			}
 			if ((error = cudaMemcpyAsync(gsrc2, src2, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
 				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gsrc2" << endl;
+				fgetc(stdin);
 				exit(-1);
 			}
 			if ((error = cudaMemcpyAsync(gdst, dst, sizeof(int*)*length, cudaMemcpyHostToDevice, cudaStream)) != cudaSuccess){
 				cout << cudaGetErrorString(error) << endl;
 				cout << "cudaMemcpy error in gdist" << endl;
+				fgetc(stdin);
 				exit(-1);
 			}
 			H2DTime += (clock() - t1);

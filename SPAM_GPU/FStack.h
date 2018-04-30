@@ -78,17 +78,30 @@ int Fstack::getBase() {
 }
 
 void Fstack::free() {
+
+	if (base > len)
+	{
+		cout << "Not enough memory" << endl;
+		fgetc(stdin);
+		exit(-1);
+	}
+
 	if (len > base + 99) {
 		for (int i = 0; i < 100; i++) {
 			if (ptr[base + i]->iBitmap->memPos) {
+				ptr[base + i]->iBitmap->Malloc();
 				ptr[base + i]->iBitmap->CudaMemcpy(1, *cudaStream);
+				ptr[base + i]->iBitmap->CudaFree();
 			}
 		}
 		base += 100;
 	}
 	else {
 		if (ptr[base]->iBitmap->memPos) {
+			ptr[base]->iBitmap->Malloc();
 			ptr[base]->iBitmap->CudaMemcpy(1, *cudaStream);
+			ptr[base]->iBitmap->CudaFree();
+
 		}
 		base++;
 	}
