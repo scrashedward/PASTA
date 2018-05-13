@@ -448,11 +448,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	cout << "memory info before mining start:" << endl;
 	PrintMemInfo();
 
-	int sum = 0;
-	for (int i = 0; i < 5; i++){
-		sum += SeqBitmap::size[i];
-	}
-	cout << "bitmap size: " << sum * 4 << endl;
+	cout << "bitmap size: " << SeqBitmap::sizeSum << endl;
 	while (1){
 		if (memLogCount % 100 == 0)
 		{
@@ -645,7 +641,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
-	cout << "total Memory Swapped: " << memSwapped * SeqBitmap::sizeSum << endl;
+	cout << "total Memory Swapped: " << memSwapped << endl;
 	cout << "total Candidate Number: " << totalCandidates << endl;
 	PrintMemInfo();
 }
