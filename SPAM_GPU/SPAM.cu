@@ -487,13 +487,13 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 		sWorkSize[tag] = 0;
 		iWorkSize[tag] = 0;
 
-		if (cudaMemset(sgresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		if (cudaMemsetAsync(sgresult[tag], 0, sizeof(int)*MAX_WORK_SIZE, copyStream) != cudaSuccess){
 			cout << "cudaMemset error in sgresult" << endl;
 			cudaError = cudaGetLastError();
 			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
 			exit(-1);
 		}
-		if (cudaMemset(igresult[tag], 0, sizeof(int)*MAX_WORK_SIZE) != cudaSuccess){
+		if (cudaMemsetAsync(igresult[tag], 0, sizeof(int)*MAX_WORK_SIZE, copyStream) != cudaSuccess){
 			cout << "cudaMemset error in igresult" << endl;
 			 cudaError = cudaGetLastError();
 			if (cudaError != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(cudaError));
@@ -645,7 +645,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	tmining_end = clock();
 	cout << "total time for mining end:	" << tmining_end - tmining_start << endl;
 	cout << "total Frequent Itemset Number: " << totalFreq << endl;
-	cout << "total Memory Swapped: " << memSwapped * SeqBitmap::sizeSum << endl;
+	cout << "total Memory Swapped: " << memSwapped << endl;
 	cout << "total Candidate Number: " << totalCandidates << endl;
 	PrintMemInfo();
 }
