@@ -275,14 +275,19 @@ stack<int*> SeqBitmap::gpuMemPool = stack<int*>();
 #ifndef  SHARED_LIST
 #define SHARED_LIST
 
+struct SupList {
+	int value;
+	int sup;
+};
+
 class SList{
 public:
 	int count;
 	int index;
-	int* list;
+	SupList* list;
 
 	SList(int l){
-		list = new int[l];
+		list = new SupList[l];
 		count = 0;
 		index = 0;
 	}
@@ -300,8 +305,10 @@ public:
 		return count;
 	}
 
-	int add(int i){
-		list[index++] = i;
+	int add(int i, int s){
+		list[index].value = i;
+		list[index].sup = s;
+		index++;
 		return index;
 	}
 };

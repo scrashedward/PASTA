@@ -16,6 +16,8 @@ public:
 	static int f1Len;
 	SeqBitmap * iBitmap;
 	int support;
+	int parentSup[2];
+	int grandParentSup = -1;
 };
 
 TreeNode** TreeNode::f1 = NULL;
