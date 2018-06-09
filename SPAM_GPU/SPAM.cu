@@ -29,8 +29,8 @@ struct DbInfo{
 DbInfo ReadInput(char* input, float minSupPer, TreeNode **&f1, int *&index);
 void IncArraySize(int*& array, int oldSize, int newSize);
 int getBitmapType(int size);
-void FindSeqPattern(Fstack*, int, int*);
-void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int minSup, int *index);
+void FindSeqPattern(Fstack*, int*);
+void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int *index);
 void PrintMemInfo();
 size_t GetMemSize();
 
@@ -40,8 +40,13 @@ int WORK_SIZE;
 int MAX_THREAD_NUM;
 int totalFreq;
 bool pipeline = false;
+bool supLog = false;
 int memLim = 0;
 int cNum = 0;
+int minSup;
+int bucketSize = 10000; // default bucket size 10000
+int* candidateBucket;
+int* frequentBucket;
 fstream mlg;
 fstream slg;
 cudaStream_t kernelStream, copyStream;
@@ -58,7 +63,6 @@ int main(int argc, char** argv){
 	float minSupPer = atof(argv[2]);
 	// open log file to record memory usage
 	mlg.open("memLog.csv", fstream::trunc | fstream::out);
-	slg.open("supLog.csv", fstream::trunc | fstream::out);
 
 	totalFreq = 0;
 	MAX_BLOCK_NUM = 512;
@@ -98,13 +102,26 @@ int main(int argc, char** argv){
 		{
 			memLim = atoi(argv[i + 1]);
 		}
+		else if (strcmp(argv[i], "-l") == 0) // turn on support log
+		{
+			i--;
+			supLog = true;
+		}
+		else {
+			cout << "Unknown Command: " << argv[i] << endl;
+			exit(-1);
+		}
 	}
 
 	if (WORK_SIZE == 0) WORK_SIZE = MAX_BLOCK_NUM;
 	if (MAX_WORK_SIZE == 0) MAX_WORK_SIZE = MAX_BLOCK_NUM * 4;
 
+	if (supLog) slg.open("supLog.csv", fstream::trunc | fstream::out);
+	
 	cudaSetDevice(0);
 
+	candidateBucket = new int[bucketSize];
+	frequentBucket = new int[bucketSize];
 	TreeNode** f1 = NULL;
 	int *index = NULL;
 	Fstack* fStack = new Fstack(&copyStream);
@@ -138,10 +155,11 @@ int main(int argc, char** argv){
 		fStack->push(f1[i]);
 	}
 
+	minSup = minSupPer * dbInfo.cNum;
 	cNum = dbInfo.cNum;
 	cout << "dataset size: " << cNum << endl;
 	PrintMemInfo();
-	FindSeqPattern(fStack, minSupPer * dbInfo.cNum, index);
+	FindSeqPattern(fStack, index);
 
 	delete f1List;
 	delete fStack;
@@ -370,7 +388,7 @@ int getBitmapType(int size){
 	}
 }
 
-void FindSeqPattern(Fstack* fStack, int minSup, int * index){
+void FindSeqPattern(Fstack* fStack, int * index){
 	clock_t tmining_start, tmining_end, t1, prepare = 0;
 	tmining_start = clock();
 	cudaError_t cudaError;
@@ -476,7 +494,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 				}
 				running = false;
 				cudaStreamSynchronize(copyStream);
-				ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+				ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, index);
 				hasResult = false;
 			}
 			if (fStack->empty()){
@@ -641,7 +659,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 
 		if (hasResult){
 			cudaStreamSynchronize(copyStream);
-			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, minSup, index);
+			ResultCollecting(sgList[tag ^ 1], igList[tag ^ 1], sWorkSize[tag ^ 1], iWorkSize[tag ^ 1], currentStack[tag ^ 1], sResult[tag ^ 1], iResult[tag ^ 1], sResultNodes[tag ^ 1], iResultNodes[tag ^ 1], fStack, index);
 		}
 		tag ^= 1;
 	}
@@ -657,7 +675,7 @@ void FindSeqPattern(Fstack* fStack, int minSup, int * index){
 	PrintMemInfo();
 }
 
-void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int minSup, int *index  ){
+void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWorkSize, stack<TreeNode*> &currentStack, int * sResult, int *iResult, TreeNode** sResultNodes, TreeNode** iResultNodes, Fstack *fStack, int *index ){
 
 	for (int i = 0; i < 5; i++){
 		if (SeqBitmap::size[i] > 0){
@@ -693,9 +711,9 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		int iListStart = currentNodePtr->iListStart;
 		for (int i = currentNodePtr->iListLen - 1; i >= 0; i--){
 			iPivot--;
-			slg << iResultNodes[iPivot]->parentSup[0] << "," << iResultNodes[iPivot]->parentSup[1] << "," << iResultNodes[iPivot]->grandParentSup << "," << iResult[iPivot] << ",";
+			if (supLog) slg << iResultNodes[iPivot]->parentSup[0] << "," << iResultNodes[iPivot]->parentSup[1] << "," << iResultNodes[iPivot]->grandParentSup << "," << iResult[iPivot] << ",";
 			if (iResult[iPivot] >= minSup){
-				slg << "1" << endl;
+				if (supLog) slg << "1" << endl;
 				iResultNodes[iPivot]->sList = sList->get();
 				iResultNodes[iPivot]->sListLen = sListSize;
 				iResultNodes[iPivot]->iList = iList->get();
@@ -709,7 +727,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				totalFreq++;
 			}
 			else{
-				slg << "0" << endl;
+				if (supLog) slg << "0" << endl;
 				iResultNodes[iPivot]->iBitmap->CudaFree();
 				delete iResultNodes[iPivot]->iBitmap;
 				delete iResultNodes[iPivot];
@@ -718,7 +736,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 		tmp = 0;
 		for (int i = currentNodePtr->sListLen - 1; i >= 0; i--){
 			sPivot--;
-			slg << sResultNodes[sPivot]->parentSup[0] << "," << sResultNodes[sPivot]->parentSup[1] << "," << sResultNodes[sPivot]->grandParentSup << "," << sResult[sPivot] << ",";
+			if (supLog) slg << sResultNodes[sPivot]->parentSup[0] << "," << sResultNodes[sPivot]->parentSup[1] << "," << sResultNodes[sPivot]->grandParentSup << "," << sResult[sPivot] << ",";
 			if (sResult[sPivot] >= minSup){
 				slg << "1" << endl;
 				sResultNodes[sPivot]->sList = sList->get();
@@ -735,7 +753,7 @@ void ResultCollecting(GPUList *sgList, GPUList *igList, int sWorkSize, int iWork
 				totalFreq++;
 			}
 			else{
-				slg << "0" << endl;
+				if (supLog) slg << "0" << endl;
 				sResultNodes[sPivot]->iBitmap->CudaFree();
 				delete sResultNodes[sPivot]->iBitmap;
 				delete sResultNodes[sPivot];
